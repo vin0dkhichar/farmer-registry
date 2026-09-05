@@ -5,11 +5,14 @@ from openg2p_registry_core.schemas import (
     G2PRegisterHistorySchema, G2PPersonHistorySchema, G2PGeoHistorySchema,
     G2PIntakeFormSchemaBase
 )
+from ..models.enums import RelationshipToTheHeadEnum
 
 
 class G2PSchemaHouseholdMember:
 
     is_disabled: Optional[bool] = None
+    is_head: Optional[bool] = None
+    relationship_to_the_head: Optional[RelationshipToTheHeadEnum] = None
 
 
 class G2PRegisterSchemaHouseholdMember(G2PRegisterBaseSchema, G2PPersonSchema, G2PGeoSchema, G2PSchemaHouseholdMember):

@@ -1,5 +1,5 @@
 from openg2p_registry_core.models.g2p_intake_form import G2PIntakeForm
-from sqlalchemy import Integer, String, Text, select
+from sqlalchemy import Integer, Numeric, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column
 from openg2p_registry_core.models import (
     G2PRegister, G2PRegisterHistory, G2PGeo, G2PGeoShape,
@@ -12,7 +12,7 @@ class G2PLand:
 
     land_ownership_type: Mapped[LandOwnershipTypeEnum] = mapped_column(String, nullable=True)   # LandOwnershipTypeEnum
     certificate_storage_id: Mapped[str] = mapped_column(Text, nullable=True)
-    land_size: Mapped[str] = mapped_column(String, nullable=True)
+    land_size: Mapped[float] = mapped_column(Numeric, nullable=True)
     unit: Mapped[LandSizeUnitEnum] = mapped_column(String, nullable=True)        # LandSizeUnitEnum
     soil_fertility: Mapped[str] = mapped_column(String, nullable=True)
     current_land_use: Mapped[CurrentLandUseEnum] = mapped_column(String, nullable=True)      # CurrentLandUseEnum

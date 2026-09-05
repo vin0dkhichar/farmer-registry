@@ -12,6 +12,7 @@ class G2PSchemaHousehold:
     household_head: Optional[str] = None
     size_of_group: Optional[int] = None
     number_of_children: Optional[int] = None
+    number_of_elderly_members: Optional[int] = None
     number_of_female_members: Optional[int] = None
     number_of_male_members: Optional[int] = None
     other_land_owner: Optional[bool] = None

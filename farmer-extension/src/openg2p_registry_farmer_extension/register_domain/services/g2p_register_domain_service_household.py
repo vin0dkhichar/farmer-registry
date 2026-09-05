@@ -26,6 +26,10 @@ class G2PRegisterDomainServiceHousehold(G2PRegisterDomainService):
         if size_of_group is not None and children is not None and children > size_of_group:
             validation_error("number_of_children must not exceed size_of_group")
 
+        elderly = as_int(record.get("number_of_elderly_members"))
+        if size_of_group is not None and elderly is not None and elderly > size_of_group:
+            validation_error("number_of_elderly_members must not exceed size_of_group")
+
     def construct_search_text(self, payload: dict, extra: list[str] = None) -> str:
         _logger.info("Constructing search text for household")
 

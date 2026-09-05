@@ -15,7 +15,7 @@ class G2PFarmer:
     disabled: Mapped[bool] = mapped_column(Boolean, nullable=True)
     disability_type: Mapped[DisabilityTypeEnum] = mapped_column(String, nullable=True)       # DisabilityTypeEnum
     disability_severity: Mapped[DisabilitySeverityEnum] = mapped_column(String, nullable=True)   # DisabilitySeverityEnum
-    source_of_income: Mapped[SourceOfIncomeEnum] = mapped_column(String, nullable=True)      # SourceOfIncomeEnum; use source_of_income_other when OTHERS (Excel)
+    source_of_income: Mapped[SourceOfIncomeEnum] = mapped_column(String, nullable=True)      # MDS SOURCE_OF_INCOME; use source_of_income_other when SOI_OTHERS
     source_of_income_other: Mapped[str] = mapped_column(String, nullable=True)
     language_spoken: Mapped[str] = mapped_column(String, nullable=True)       # Attribute lookup (Excel: ISO-639-2 searchable dropdown)
     education_level: Mapped[EducationalLevelEnum] = mapped_column(String, nullable=True)       # EducationalLevelEnum

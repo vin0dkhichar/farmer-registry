@@ -53,13 +53,12 @@ maintainers:
 # key (.Values.registry.*).
 #
 # Since the platform moved to GitLab, openg2p-registry is pulled from the shared
-# `openg2p/charts` Helm registry (project 84460547, channel `stable`) rather than
-# the old openg2p-helm GitHub Pages index, which is frozen at the pre-move
-# versions. The project is public, so no credentials are needed to resolve it.
+# `openg2p/charts` Helm registry rather than the old openg2p-helm GitHub Pages
+# index (frozen at pre-move versions).
 dependencies:
   - name: openg2p-registry
     alias: registry
-    version: 0.0.0-develop.430
+    version: 1.2.0-rc.434
     repository: https://openg2p.github.io/openg2p-helm
 
 # Rancher catalog branding

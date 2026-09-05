@@ -2,9 +2,6 @@ name: Build & Publish
 
 # Thin caller: all versioning/build/publish logic lives in
 # openg2p/openg2p-packaging@v1. This file declares only what THIS repo contains.
-#
-# The images build FROM registry-platform's published images (see the Dockerfiles'
-# RP_VERSION), so this repo has no source pin on it.
 
 on:
   push:

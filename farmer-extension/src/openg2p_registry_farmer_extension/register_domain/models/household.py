@@ -10,6 +10,7 @@ class G2PHousehold:
     household_head: Mapped[str] = mapped_column(String, nullable=True)
     size_of_group: Mapped[int] = mapped_column(Integer, nullable=True)
     number_of_children: Mapped[int] = mapped_column(Integer, nullable=True)
+    number_of_elderly_members: Mapped[int] = mapped_column(Integer, nullable=True)
     number_of_female_members: Mapped[int] = mapped_column(Integer, nullable=True)
     number_of_male_members: Mapped[int] = mapped_column(Integer, nullable=True)
     other_land_owner: Mapped[bool] = mapped_column(Boolean, nullable=True)

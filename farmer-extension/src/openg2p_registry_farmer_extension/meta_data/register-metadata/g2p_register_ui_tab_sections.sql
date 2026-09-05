@@ -16,4 +16,10 @@ INSERT INTO "public"."g2p_register_ui_tab_sections" ("tab_section_id","register_
 ('a92a052c-d439-4809-9f30-df1465f667e4','9055ab43-c85d-4833-bd00-ca657bb72644','household_farmer_tab','household_farmer_socio_economic_and_health_section_04',20),
 ('63ff4361-ad54-4d5a-b475-36d6267281e3','a1a4d25a-1cd4-4356-abac-985a0b3c6bcd','farmer_farmer_tab','01425f4e-720e-4a4e-a0db-73f371ae2a07',5),
 ('f6ee19da-f32c-4a7b-8f5d-01f7af3edd92','9055ab43-c85d-4833-bd00-ca657bb72644','household_household_tab','household_computation_score',15),
+<<<<<<< HEAD
 ('d8753df5-d511-4c63-b045-ff9720a31808','a1a4d25a-1cd4-4356-abac-985a0b3c6bcd','farmer_farmer_tab','farmer_farmer_location_section_03',25);
+=======
+('d8753df5-d511-4c63-b045-ff9720a31808','a1a4d25a-1cd4-4356-abac-985a0b3c6bcd','farmer_farmer_tab','farmer_farmer_location_section_03',19),
+('f81b17d9-35af-4d72-8ca7-3f9be1ca7c5b','a1a4d25a-1cd4-4356-abac-985a0b3c6bcd','farmer_farmer_tab','58bc5e1c-1c5c-4bb5-aa5f-849755520112',30),
+('858fead4-9d8b-4f76-9915-7d591b1f4559','a1a4d25a-1cd4-4356-abac-985a0b3c6bcd','farmer_farmer_tab','bc882922-9008-4902-8f4f-98db0fa8f9ad',35);
+>>>>>>> 1.2

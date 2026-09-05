@@ -20,7 +20,7 @@
 {% elif gender_value == "FEMALE" %}
   {% set gender_value = "FEMALE" %}
 {% elif gender_value in ["OTHER", "OTHERS"] %}
-  {% set gender_value = "OTHERS" %}
+  {% set gender_value = "OTHER" %}
 {% else %}
   {% set gender_value = "UNKNOWN" %}
 {% endif %}
@@ -30,13 +30,13 @@
   {% set marital_status = "UNKNOWN" %}
 {% endif %}
 
-{% set source_of_income = "OTHERS" %}
+{% set source_of_income = "SOI_OTHERS" %}
 {% if farm_details %}
   {% set first_activity = (first_farm.get("farming_activities", []) | first) or {} %}
   {% if first_activity.get("crop_production") %}
-    {% set source_of_income = "CROP_PRODUCTION" %}
+    {% set source_of_income = "SOI_CROP_PRODUCTION" %}
   {% elif first_activity.get("animal_production") %}
-    {% set source_of_income = "LIVESTOCK_PRODUCTION" %}
+    {% set source_of_income = "SOI_LIVESTOCK_PRODUCTION" %}
   {% endif %}
 {% endif %}
 
@@ -76,6 +76,7 @@
       "household_head": "{{ (family_head_name.get('first_name', '') ~ ' ' ~ family_head_name.get('last_name', '')).strip() }}",
       "size_of_group": {{ family.get("group_size", 0) | int }},
       "number_of_children": {{ family_members | length }},
+      "number_of_elderly_members": 0,
       "number_of_female_members": 0,
       "number_of_male_members": 0,
       "other_land_owner": false
@@ -87,7 +88,10 @@
     {% set member_name = member_demo.get("name", {}) %}
     {% set member_identifier = member_demo.get("identifier", (member.get("member_identifier", []) | first) or {}) %}
     {% set member_gender = (member_demo.get("gender", member_demo.get("sex", "")) or "UNKNOWN") | upper %}
-    {% if member_gender not in ["MALE", "FEMALE", "OTHERS", "UNKNOWN"] %}
+    {% if member_gender == "OTHERS" %}
+      {% set member_gender = "OTHER" %}
+    {% endif %}
+    {% if member_gender not in ["MALE", "FEMALE", "OTHER", "UNKNOWN"] %}
       {% set member_gender = "UNKNOWN" %}
     {% endif %}
     {
@@ -102,6 +106,8 @@
       "birth_date": "{{ (member_demo.get('date_of_birth', member_demo.get('birth_date', '')) or '').split('T')[0] }}",
       "gender": "{{ member_gender }}",
       "is_disabled": {{ "true" if member.get("is_disabled") else "false" }},
+      "is_head": {{ "true" if member.get("is_head") else "false" }},
+      "relationship_to_the_head": "{{ member.get('relationship_to_the_head', member.get('relationship_to_head', '')) }}",
       "registration_date": "{{ (member.get('registration_date', family.get('registration_date', '')) or '').split('T')[0] }}"
     }{% if not loop.last %},{% endif %}
 {% endfor %}

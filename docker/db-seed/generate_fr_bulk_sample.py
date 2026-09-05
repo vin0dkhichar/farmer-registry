@@ -7,8 +7,8 @@ It writes farmer's own extension tables and draws every enum-backed value from
 farmer's LandOwnershipTypeEnum, CurrentLandUseEnum, FarmingTypeEnum,
 LandSizeUnitEnum, CropEndUseEnum, LivestockSystemEnum, SourceOfIncomeEnum and
 FarmerClusterRoleEnum. It cannot seed any other registry, and it has to move in
-lockstep with those enums and with reporting_views.sql, which reads the values it
-writes. NSR's equivalent is a different script for the same reason.
+lockstep with those enums. NSR's equivalent is a different script for the same
+reason.
 
 Why this exists alongside the inherited load_sample_data.py
 -----------------------------------------------------------
@@ -34,8 +34,13 @@ Shape it generates
     farmer ──< land ──< crop / livestock / farm_inputs
            └──< membership_details, score
 
+<<<<<<< HEAD
 which is the shape reporting_views.sql reads: crops, livestock and inputs belong
 to the PARCEL, not to the farmer.
+=======
+which is the farmer schema: crops, livestock and inputs belong to the PARCEL,
+not to the farmer.
+>>>>>>> 1.2
 """
 
 import argparse
@@ -69,8 +74,8 @@ CROP_END_USE = [("FOOD_HUMAN_CONSUMPTION", 0.72), ("FEED_ANIMALS", 0.18),
                 ("BIOFUELS_NONFOOD", 0.05), ("OTHER", 0.05)]
 LIVESTOCK_SYSTEM = [("SEDENTARY_PASTORAL", 0.44), ("MIXED", 0.28), ("SEMI_NOMADIC", 0.14),
                     ("NOMADIC_PASTORAL", 0.10), ("INDUSTRIAL", 0.04)]
-INCOME = [("CROP_PRODUCTION", 0.55), ("LIVESTOCK_PRODUCTION", 0.27),
-          ("GOVERNMENT_NGO_SUPPORT", 0.10), ("OTHERS", 0.08)]
+INCOME = [("SOI_CROP_PRODUCTION", 0.55), ("SOI_LIVESTOCK_PRODUCTION", 0.27),
+          ("SOI_GOVERNMENT_NGO_SUPPORT", 0.10), ("SOI_OTHERS", 0.08)]
 CLUSTER_ROLE = [("MEMBER", 0.80), ("LEAD", 0.07), ("DEPUTY", 0.06),
                 ("SECRETARY", 0.04), ("ACCOUNTANT", 0.03)]
 EDUCATION = [("NONE", 0.28), ("PRIMARY", 0.36), ("SECONDARY", 0.24),
@@ -131,7 +136,11 @@ def load_geo(mds_conn, expect_country):
 
     Read, never invented: the chain is exactly what Master Data holds, so the
     generated geo_code_hierarchy_json joins to the same ids the rest of the
+<<<<<<< HEAD
     platform uses and reporting_views.sql can unpack it positionally.
+=======
+    platform uses.
+>>>>>>> 1.2
     """
     with mds_conn.cursor() as cur:
         cur.execute("SELECT to_regclass('public.g2p_geo_levels')")
@@ -281,14 +290,40 @@ def main():
                             'WHERE created_by = %s')
             bulk_lands = (f'SELECT internal_record_id FROM g2p_register_lands '
                           f'WHERE link_internal_record_id IN ({bulk_farmers})')
+            for live, hist in (
+                ("g2p_register_crops", "g2p_register_history_crops"),
+                ("g2p_register_livestocks", "g2p_register_history_livestocks"),
+                ("g2p_register_farm_inputs", "g2p_register_history_farm_inputs"),
+            ):
+                cur.execute(
+                    f'DELETE FROM {hist} WHERE internal_record_id IN '
+                    f'(SELECT internal_record_id FROM {live} '
+                    f'WHERE link_internal_record_id IN ({bulk_lands}))',
+                    (SEEDER,),
+                )
             for t in ("g2p_register_crops", "g2p_register_livestocks",
                       "g2p_register_farm_inputs"):
                 cur.execute(f'DELETE FROM {t} WHERE link_internal_record_id IN ({bulk_lands})',
                             (SEEDER,))
+            for live, hist in (
+                ("g2p_register_lands", "g2p_register_history_lands"),
+                ("g2p_register_membership_details", "g2p_register_history_membership_details"),
+            ):
+                cur.execute(
+                    f'DELETE FROM {hist} WHERE internal_record_id IN '
+                    f'(SELECT internal_record_id FROM {live} '
+                    f'WHERE link_internal_record_id IN ({bulk_farmers}))',
+                    (SEEDER,),
+                )
             for t in ("g2p_register_lands", "g2p_register_membership_details",
                       "g2p_register_scores"):
                 cur.execute(f'DELETE FROM {t} WHERE link_internal_record_id IN ({bulk_farmers})',
                             (SEEDER,))
+            cur.execute(
+                'DELETE FROM g2p_register_history_farmers WHERE internal_record_id IN '
+                f'({bulk_farmers})',
+                (SEEDER,),
+            )
             cur.execute('DELETE FROM g2p_register_farmers WHERE created_by = %s', (SEEDER,))
         conn.commit()
         existing = 0
@@ -395,8 +430,8 @@ def main():
         born = today - timedelta(days=age * 365 + rng.randrange(365))
         disabled = rng.random() < 0.07
         created = datetime(today.year - 1, 1, 1) + timedelta(minutes=rng.randrange(500_000))
-        # ~4% of farmers have no recorded birth date; the age band then falls back
-        # to estimated_age, which is exactly the path reporting_views.sql handles.
+        # ~4% of farmers have no recorded birth date; the age band then falls
+        # back to estimated_age.
         has_dob = rng.random() > 0.04
 
         farmers.add([
@@ -433,6 +468,7 @@ def main():
             lands.add([
                 lid, fid, _fid("LD"), "ACTIVE", created.isoformat(sep=" "), SEEDER, created.isoformat(sep=" "), SEEDER,
                 weighted(rng, TENURE), size, unit, weighted(rng, SOIL),
+                weighted(rng, TENURE), str(size), unit, weighted(rng, SOIL),
                 weighted(rng, LAND_USE), ftype, rng.randrange(1985, today.year),
                 rng.choice(["inherited", "purchased", "allocated", "rented"]),
                 f"CERT-{_seq['LD']:09d}" if rng.random() < 0.41 else None,
@@ -485,7 +521,7 @@ def main():
     log(f"loaded: {farmers.total:,} farmers, {lands.total:,} parcels, "
         f"{crops.total:,} crops, {stock.total:,} livestock, {inputs.total:,} input "
         f"records, {member.total:,} memberships, {scores.total:,} scores")
-    log("done. Refresh the reporting views next (land first, then farmer).")
+    log("done.")
 
 
 if __name__ == "__main__":

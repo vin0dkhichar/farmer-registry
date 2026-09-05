@@ -22,7 +22,6 @@ from .register_domain.models import (
     G2PIntakeFormCrop, G2PIntakeFormLand, G2PIntakeFormFarmInputs, 
     G2PIntakeFormLivestock, G2PIntakeFormMembershipDetails,
 )
-from .register_domain.factory import G2PRegisterDomainFactory
 from .register_domain.services import G2PRegisterDomainServiceFarmer, G2PRegisterDomainServiceHousehold
 
 _logger = logging.getLogger(_config.logging_default_logger_name)
@@ -33,7 +32,6 @@ class Initializer(BaseInitializer):
         super().initialize()
         CoreInitializer().initialize()
 
-        G2PRegisterDomainFactory()
         G2PRegisterDomainServiceFarmer()
         G2PRegisterDomainServiceHousehold()
 

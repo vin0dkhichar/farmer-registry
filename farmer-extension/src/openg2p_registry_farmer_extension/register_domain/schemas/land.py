@@ -12,7 +12,7 @@ class G2PSchemaLand:
 
     land_ownership_type: Optional[LandOwnershipTypeEnum] = None
     certificate_storage_id: Optional[str] = None
-    land_size: Optional[str] = None
+    land_size: Optional[float] = None
     unit: Optional[LandSizeUnitEnum] = None
     soil_fertility: Optional[str] = None
     current_land_use: Optional[CurrentLandUseEnum] = None

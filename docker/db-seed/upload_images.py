@@ -82,11 +82,11 @@ def main() -> None:
     print(f"[upload-images] Uploaded {len(uploaded)} images.")
 
     conn = psycopg2.connect(
-        host=env("PGHOST"),
-        port=os.environ.get("PGPORT", "5432"),
-        dbname=env("PGDATABASE"),
-        user=env("PGUSER"),
-        password=env("PGPASSWORD"),
+        host=env("REGISTRY_PGHOST") or env("PGHOST"),
+        port=os.environ.get("REGISTRY_PGPORT") or os.environ.get("PGPORT", "5432"),
+        dbname=env("REGISTRY_PGDATABASE") or env("PGDATABASE"),
+        user=env("REGISTRY_PGUSER") or env("PGUSER"),
+        password=env("REGISTRY_PGPASSWORD") or env("PGPASSWORD"),
     )
     conn.autocommit = False
     cur = conn.cursor()

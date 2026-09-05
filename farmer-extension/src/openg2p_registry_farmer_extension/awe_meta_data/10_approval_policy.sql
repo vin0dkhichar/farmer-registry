@@ -16,6 +16,7 @@ INSERT INTO "public"."approval_policy" (
     ('57f40743-266c-4e25-9a16-fd45483f904c', 'registry.change_request.household', 1, 'Policy for Household Change Request', NULL, 'active', 'registry.change_request', 'seed', 'FALSE', 'FALSE', NOW(), NOW()),
     ('e725a02c-6120-4e33-b4ec-294a38b07b18', 'registry.intake_form.farmer', 1, 'Policy for Farmer Intake Form', NULL, 'active', 'registry.intake_form', 'seed', 'FALSE', 'FALSE', NOW(), NOW()),
     ('fb51a862-d2ed-460d-8e1f-929cbeabdd01', 'registry.intake_form.household', 1, 'Policy for Household Intake Form', NULL, 'active', 'registry.intake_form', 'seed', 'FALSE', 'FALSE', NOW(), NOW())
+<<<<<<< HEAD
 -- Untargeted DO NOTHING, not ON CONFLICT ("id"): `approval_policy` also carries
 -- uq_policy_key_version, and the platform seeds `registry.change_request.household`
 -- under a DIFFERENT id. Targeting "id" left that natural-key clash unguarded, so
@@ -23,3 +24,6 @@ INSERT INTO "public"."approval_policy" (
 -- included. Untargeted catches every unique constraint and skips only the
 -- offending row.
 ON CONFLICT DO NOTHING;
+=======
+ON CONFLICT ("policy_key", "version") DO NOTHING;
+>>>>>>> 1.2

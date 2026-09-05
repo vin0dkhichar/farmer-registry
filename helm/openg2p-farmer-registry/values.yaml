@@ -89,15 +89,17 @@ registry:
     loadSampleData: true
     loadImages: true
     loadTemplates: true
-    # Copy the country's code lists from Master Data, and match the geo dropdowns
-    # to the hierarchy it holds. Both are country-agnostic: they take whatever
-    # pack this environment loaded. They no-op when Master Data carries neither.
-    loadAttributes: true
-    # A Farmer Registry needs the agriculture lists (crops, livestock) on top of
-    # the core ones; a social registry has no use for them.
-    attributeDomains:
-      - agriculture
-    syncGeoWidgets: true
+    intakeSeed:
+      submitUser: alex.carter
+      approver1: alex.carter
+      approver2: nina.patel
+      maxHouseholds: 25
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
 
   # Name of this registry's tile in IAM. The roles/permissions catalog itself is
   # registry-agnostic and comes from the subchart.
