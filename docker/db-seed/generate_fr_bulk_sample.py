@@ -34,13 +34,8 @@ Shape it generates
     farmer ──< land ──< crop / livestock / farm_inputs
            └──< membership_details, score
 
-<<<<<<< HEAD
-which is the shape reporting_views.sql reads: crops, livestock and inputs belong
-to the PARCEL, not to the farmer.
-=======
 which is the farmer schema: crops, livestock and inputs belong to the PARCEL,
 not to the farmer.
->>>>>>> 1.2
 """
 
 import argparse
@@ -136,11 +131,7 @@ def load_geo(mds_conn, expect_country):
 
     Read, never invented: the chain is exactly what Master Data holds, so the
     generated geo_code_hierarchy_json joins to the same ids the rest of the
-<<<<<<< HEAD
-    platform uses and reporting_views.sql can unpack it positionally.
-=======
     platform uses.
->>>>>>> 1.2
     """
     with mds_conn.cursor() as cur:
         cur.execute("SELECT to_regclass('public.g2p_geo_levels')")

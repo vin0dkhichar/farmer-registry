@@ -11,10 +11,5 @@ INSERT INTO "public"."g2p_register_definitions" ("register_id","register_mnemoni
 ('52979fdd-220c-48dd-8de0-0a434e786427','HouseholdMember','Household Members','Household Member Register','9055ab43-c85d-4833-bd00-ca657bb72644',10,'FALSE','TABLE',NULL,NULL,NULL,'FALSE','FALSE',0,'FALSE','FALSE','FALSE',730,30),
 ('5fa096f8-ffdc-4b0a-ab16-9ca386c23310','Crop','Crops','Crop Register','493153d5-07ef-4743-8efd-07f4099772b9',30,'FALSE','TABLE',NULL,NULL,NULL,'FALSE','FALSE',0,'FALSE','FALSE','FALSE',730,30),
 ('a1a4d25a-1cd4-4356-abac-638239923092','Score','Scores','Score Register','9055ab43-c85d-4833-bd00-ca657bb72644',80,'FALSE','CORE_TABLE','NULL','NULL','','FALSE','FALSE',0,'FALSE','FALSE','FALSE',730,30),
-<<<<<<< HEAD
-('a1a4d25a-1cd4-4356-abac-985a0b3c6bcd','Farmer','Farmers','Farmer register description','9055ab43-c85d-4833-bd00-ca657bb72644',1,'FALSE','REGISTER',NULL,NULL,'','FALSE','TRUE',70,'TRUE','FALSE','TRUE',730,30),
-('9055ab43-c85d-4833-bd00-ca657bb72644','Household','Households','Household Register',NULL,2,'FALSE','REGISTER',NULL,NULL,'','FALSE','TRUE',70,'FALSE','FALSE','FALSE',730,30);
-=======
 ('a1a4d25a-1cd4-4356-abac-985a0b3c6bcd','Farmer','Farmers','Farmer register description','9055ab43-c85d-4833-bd00-ca657bb72644',1,'TRUE','REGISTER',NULL,NULL,'','FALSE','TRUE',70,'TRUE','FALSE','FALSE',730,30),
 ('9055ab43-c85d-4833-bd00-ca657bb72644','Household','Households','Household Register',NULL,2,'TRUE','REGISTER',NULL,NULL,'','FALSE','TRUE',70,'FALSE','FALSE','FALSE',730,30);
->>>>>>> 1.2
