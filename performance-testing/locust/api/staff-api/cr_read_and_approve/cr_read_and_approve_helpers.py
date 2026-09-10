@@ -27,15 +27,12 @@ def total_pages(search_response_json: dict) -> int:
 
 
 def pending_change_requests(search_response_json: dict) -> list[dict]:
-    """Full result dicts (change_request_id, section_id, etc.) on this page
-    whose approval_status is PENDING.
+    """PENDING CRs on this page (change_request_id, section_id, …).
 
-    search_in_change_request has no register/status scoping in its
-    request_payload (it's empty — pagination_request.search_text is the only
-    input), so every change request on the page comes back regardless of
-    status; only PENDING ones should actually go through the AWE decision
-    step, so they're picked out here the same way pending_submission_ids does
-    for intake_read_and_approve.
+    search_in_change_request now defaults to approval_status=PENDING (same idea
+    as register search defaulting record_status=ACTIVE) and Locust also sends
+    that filter_by. This list is still filtered locally so a mixed page cannot
+    send already-approved CRs into AWE.
     """
     results = response_payload(search_response_json) or []
     return [

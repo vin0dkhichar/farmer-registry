@@ -19,19 +19,11 @@ def total_pages(search_response_json: dict) -> int:
 
 
 def pending_submissions(search_response_json: dict) -> list[dict]:
-    """Submissions on this page ready to approve (full result dicts).
+    """FINAL+PENDING submissions on this page (full result dicts).
 
-    search_in_intake_form_submissions has no server-side way to filter by
-    approval_status/draft_status: pagination_request.filter_by is validated
-    against the register's filter_schema and applied only to the register's
-    own domain model (e.g. Farmer attributes like first_name/gender) — those
-    two fields live on a different table that this filter path never
-    reaches, and an unrecognized field name is silently dropped rather than
-    erroring. So every submission on the page comes back regardless of
-    status, and the ready-to-approve ones are picked out here instead:
-    draft_status must be FINAL (still-DRAFT submissions haven't been
-    finalized yet) and approval_status must be PENDING (not already
-    approved/rejected).
+    search_in_intake_form_submissions now defaults to those statuses (and Locust
+    sends the same filter_by), matching register search's ACTIVE default.
+    Local filter remains so a mixed page cannot approve drafts or done rows.
     """
     submissions = response_payload(search_response_json) or []
     return [
