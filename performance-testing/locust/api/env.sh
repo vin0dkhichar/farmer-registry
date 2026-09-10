@@ -39,11 +39,11 @@ export STEP=1-isolated
 
 # Only used when STEP=1-isolated (picks which of the 5 scenarios to fire).
 # Uncomment exactly one.
-export ISOLATED_SCENARIO=register-read
+# export ISOLATED_SCENARIO=register-read
 # export ISOLATED_SCENARIO=cr-create
 # export ISOLATED_SCENARIO=cr-read-and-approve
 # export ISOLATED_SCENARIO=intake-create
-# export ISOLATED_SCENARIO=intake-read-and-approve
+export ISOLATED_SCENARIO=intake-read-and-approve
 
 # =============================================================================
 # SLOs -- documentation/staff-api/test-scenarios.md §5. One section per
@@ -54,14 +54,20 @@ export ISOLATED_SCENARIO=register-read
 # LoadTestShape -- edit values/membership here, not in Python.
 # =============================================================================
 
+# Freeze the isolated ramp when a farmer staff-portal-api pod reaches this
+# many cores (kubectl top). 1.8 leaves headroom under a 2-vCPU limit.
+export CPU_BREACH_CORES=1.6
+export STAFF_API_KUBE_NAMESPACE=perftest
+export STAFF_API_POD_GREP=farmer-registry-staff-portal-api
+
 # --- SLO class: Metadata-Read ------------------------------------------------
-export SLO_P95_METADATA_READ_MS=1000
-export SLO_P99_METADATA_READ_MS=1200
+export SLO_P95_METADATA_READ_MS=800
+export SLO_P99_METADATA_READ_MS=1000
 export METADATA_READ_ENDPOINTS="get_all_tabs,get_all_sections,get_tab_sections,get_section_ui_schema,get_attribute_values,render_intake_form"
 
 # --- SLO class: Register-Read ------------------------------------------------
-export SLO_P95_REGISTER_READ_MS=1000
-export SLO_P99_REGISTER_READ_MS=1200
+export SLO_P95_REGISTER_READ_MS=800
+export SLO_P99_REGISTER_READ_MS=1000
 export REGISTER_READ_ENDPOINTS="get_register_summary_data,get_subject_record,get_tab_records,get_number_of_versions,get_version_dates,get_versions_for_a_date,get_deduplication_register_results"
 # get_record_history is Register-Read too (same 300/600ms SLO above), but is
 # EXCLUDED from REGISTER_READ_ENDPOINTS above -- known upstream bug
@@ -72,48 +78,48 @@ export REGISTER_READ_ENDPOINTS="get_register_summary_data,get_subject_record,get
 # export REGISTER_READ_ENDPOINTS="${REGISTER_READ_ENDPOINTS},get_record_history"
 
 # --- SLO class: Change-Request-Read ------------------------------------------
-export SLO_P95_CHANGE_REQUEST_READ_MS=1000
-export SLO_P99_CHANGE_REQUEST_READ_MS=1200
+export SLO_P95_CHANGE_REQUEST_READ_MS=800
+export SLO_P99_CHANGE_REQUEST_READ_MS=1000
 export CHANGE_REQUEST_READ_ENDPOINTS="get_change_request,check_change_request_sequence,get_deduplication_change_request_results,get_number_of_pending_change_requests,get_change_requests,get_register_change_request_summary_data"
 
 # --- SLO class: Intake-Submission-Read ---------------------------------------
-export SLO_P95_INTAKE_SUBMISSION_READ_MS=1000
-export SLO_P99_INTAKE_SUBMISSION_READ_MS=1200
+export SLO_P95_INTAKE_SUBMISSION_READ_MS=800
+export SLO_P99_INTAKE_SUBMISSION_READ_MS=1000
 export INTAKE_SUBMISSION_READ_ENDPOINTS="get_intake_form_submission,get_intake_form_submissions_summary,get_deduplication_intake_form_register_results,get_deduplication_intake_form_intake_form_results"
 
 # --- SLO class: Register-Search ----------------------------------------------
-export SLO_P95_REGISTER_SEARCH_MS=1000
-export SLO_P99_REGISTER_SEARCH_MS=1200
+export SLO_P95_REGISTER_SEARCH_MS=800
+export SLO_P99_REGISTER_SEARCH_MS=1000
 export REGISTER_SEARCH_ENDPOINTS="search_in_a_register,search_in_change_request,search_in_intake_form_submissions"
 
 # --- SLO class: Change-Request-Write -----------------------------------------
-export SLO_P95_CHANGE_REQUEST_WRITE_MS=1000
-export SLO_P99_CHANGE_REQUEST_WRITE_MS=1200
+export SLO_P95_CHANGE_REQUEST_WRITE_MS=800
+export SLO_P99_CHANGE_REQUEST_WRITE_MS=1000
 export CHANGE_REQUEST_WRITE_ENDPOINTS="create_change_request,create_change_request_for_core_data"
 
 # --- SLO class: Intake-Submission-Write --------------------------------------
-export SLO_P95_INTAKE_SUBMISSION_WRITE_MS=1000
-export SLO_P99_INTAKE_SUBMISSION_WRITE_MS=1200
+export SLO_P95_INTAKE_SUBMISSION_WRITE_MS=800
+export SLO_P99_INTAKE_SUBMISSION_WRITE_MS=1000
 export INTAKE_SUBMISSION_WRITE_ENDPOINTS="save_intake_form_submission,finalize_intake_form_submission"
 
 # --- SLO class: Workflow-Read -------------------------------------------------
-export SLO_P95_WORKFLOW_READ_MS=1400
-export SLO_P99_WORKFLOW_READ_MS=1500
+export SLO_P95_WORKFLOW_READ_MS=1200
+export SLO_P99_WORKFLOW_READ_MS=1300
 export WORKFLOW_READ_ENDPOINTS="list_tasks_for_request"
 
 # --- SLO class: Workflow-Write ------------------------------------------------
-export SLO_P95_WORKFLOW_WRITE_MS=1400
-export SLO_P99_WORKFLOW_WRITE_MS=1500
+export SLO_P95_WORKFLOW_WRITE_MS=1200
+export SLO_P99_WORKFLOW_WRITE_MS=1300
 export WORKFLOW_WRITE_ENDPOINTS="submit_task_decision"
 
 # --- SLO class: Document-Fetch ------------------------------------------------
-export SLO_P95_DOCUMENT_FETCH_MS=1000
-export SLO_P99_DOCUMENT_FETCH_MS=1200
+export SLO_P95_DOCUMENT_FETCH_MS=800
+export SLO_P99_DOCUMENT_FETCH_MS=1000
 export DOCUMENT_FETCH_ENDPOINTS="get_file_url,get_change_request_documents,get_intake_form_documents"
 
 # --- SLO class: Document-Upload ----------------------------------------------
 # No p99 -- size-dependent, see test-scenarios.md §5.
-export SLO_P95_DOCUMENT_UPLOAD_MS=1000
+export SLO_P95_DOCUMENT_UPLOAD_MS=800
 export DOCUMENT_UPLOAD_ENDPOINTS="upload_documents"
 
 echo "------------------"
@@ -137,3 +143,6 @@ echo "$VOLUME_TIER"
 echo "$POD_SCALE"
 echo "$STEP"
 echo "$ISOLATED_SCENARIO"
+echo "$CPU_BREACH_CORES"
+echo "$STAFF_API_KUBE_NAMESPACE"
+echo "$STAFF_API_POD_GREP"

@@ -26,6 +26,8 @@ from intake_create_helpers import (
     extract_submission_id,
     extract_tab_sections,
     merge_with_accumulated,
+    new_row_ids,
+    order_sections_for_parent_links,
 )
 
 
@@ -68,7 +70,9 @@ class IntakeCreateUser(LocustUser):
         render_response = self._render_intake_form()
         print(f"\nDEBUG render_response -> {safe_json(render_response)}\n")
         tab_sections = extract_tab_sections(safe_json(render_response), FARMER_INTAKE_TAB_ID)
-        section_ids = [section["section_id"] for section in tab_sections]
+        section_ids = order_sections_for_parent_links(
+            [section["section_id"] for section in tab_sections]
+        )
         documents_required_by_section = {
             section["section_id"]: bool(section.get("documents_required")) for section in tab_sections
         }
@@ -78,6 +82,7 @@ class IntakeCreateUser(LocustUser):
 
         attribute_name, section_with_override, value = choose_random_attribute_override()
         household_id = choose_household_id()
+        row_ids = new_row_ids()
         search_anchor = self._search_anchor_for_create()
         print(f"\nDEBUG CREATE search_anchor -> {search_anchor!r}\n")
 
@@ -96,6 +101,7 @@ class IntakeCreateUser(LocustUser):
                 value,
                 household_id,
                 search_anchor=search_anchor,
+                row_ids=row_ids,
             )
             section_payload = merge_with_accumulated(
                 section_def["section_register_id"], own_payload, accumulated_by_register
@@ -122,11 +128,13 @@ class IntakeCreateUser(LocustUser):
                     f"\nDEBUG ERROR for {section_id} -> payload={section_payload} "
                     f"response={save_response_json}\n"
                 )
-            else:
-                print(f"\nDEBUG {section_id} -> {response_status}\n")
+                return
+            print(f"\nDEBUG {section_id} -> {response_status}\n")
 
             if submission_id is None:
                 submission_id = extract_submission_id(save_response_json)
+                if not submission_id:
+                    return
 
         if not submission_id:
             return

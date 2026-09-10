@@ -86,17 +86,62 @@ def find_history_csv(run_dir: Path) -> Path | None:
 def concurrency_note(run_dir: Path) -> str | None:
     # *_stats.csv (the per-endpoint table) is a single end-of-run aggregate --
     # no time dimension, so no concurrency column ever existed there. Locust's
-    # *_stats_history.csv has "User Count" per timestamp; pull min/max/final
-    # from it as a one-line raw fact, not the full time series.
+    # *_stats_history.csv has "User Count" and "Requests/s" per timestamp;
+    # pull min/max/final users and peak Aggregated RPS as one-line raw facts,
+    # not the full time series.
     history_csv = find_history_csv(run_dir)
     if history_csv is None:
         return None
     with history_csv.open(newline="") as f:
         rows = [r for r in csv.DictReader(f) if r.get("Name") == "Aggregated"]
     counts = [int(r["User Count"]) for r in rows if r.get("User Count", "").strip() != ""]
-    if not counts:
+    rps_values = []
+    for row in rows:
+        raw = (row.get("Requests/s") or "").strip()
+        if not raw:
+            continue
+        try:
+            rps_values.append(float(raw))
+        except ValueError:
+            continue
+    if not counts and not rps_values:
         return None
-    return f"Concurrent users (from `{history_csv.name}`): min {min(counts)}, max {max(counts)}, final {counts[-1]}."
+    # Locust keeps writing Aggregated rows after the shape returns None and
+    # users are stopped, so the CSV tail is User Count 0. "final" is the last
+    # in-run sample (users still > 0), not that shutdown tail.
+    last_active = None
+    for row in reversed(rows):
+        raw_users = (row.get("User Count") or "").strip()
+        if not raw_users:
+            continue
+        try:
+            users = int(raw_users)
+        except ValueError:
+            continue
+        if users > 0:
+            last_active = row
+            break
+    final_users = int(last_active["User Count"]) if last_active else (counts[-1] if counts else None)
+    final_rps = None
+    if last_active and (last_active.get("Requests/s") or "").strip():
+        try:
+            final_rps = float(last_active["Requests/s"])
+        except ValueError:
+            pass
+    if final_rps is None and rps_values:
+        final_rps = rps_values[-1]
+    bits = []
+    if counts:
+        bits.append(
+            f"Concurrent users (from `{history_csv.name}`): "
+            f"min {min(counts)}, max {max(counts)}, final {final_users}"
+        )
+    if rps_values:
+        bits.append(
+            f"Peak RPS (Aggregated): min {min(rps_values):.2f}, "
+            f"max {max(rps_values):.2f}, final {final_rps:.2f}"
+        )
+    return "  \n".join(f"{bit}." for bit in bits)
 
 
 def render_isolated_step(step_dir: Path) -> str | None:

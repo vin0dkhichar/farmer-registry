@@ -205,6 +205,10 @@ class CrReadAndApproveUser(LocustUser):
                 "current_page": current_page,
                 "page_size": CR_SEARCH_PAGE_SIZE,
                 "search_text": self.search_text,
+                "filter_by": {
+                    "approval_status": {"eq": "PENDING"},
+                    "register_id": {"eq": REGISTER_FARMER},
+                },
             },
         )
         return self._post(

@@ -199,6 +199,10 @@ class IntakeReadAndApproveUser(LocustUser):
                 "current_page": current_page,
                 "page_size": INTAKE_SEARCH_PAGE_SIZE,
                 "search_text": self.search_text,
+                "filter_by": {
+                    "draft_status": {"eq": "FINAL"},
+                    "approval_status": {"eq": "PENDING"},
+                },
             },
         )
         return self._post(

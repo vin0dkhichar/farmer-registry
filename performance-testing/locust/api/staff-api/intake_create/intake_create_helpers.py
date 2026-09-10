@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import copy
 import random
+import uuid
 from datetime import date
 from typing import Any, Optional
 
@@ -22,6 +23,34 @@ from shared.config import HOUSEHOLD_IDS, REGISTER_FARMER
 
 HOUSEHOLD_LOOKUP_SECTION_ID = "farmer_household_lookup_section_01"
 PERSONAL_IDENTIFICATION_SECTION_ID = "farmer_farmer_personal_identification_section_01"
+# Intake-form crop section_id (g2p_intake_form_ui_tab_sections); not farmer_crop_crop_details_section_01.
+INTAKE_CROP_SECTION_ID = "a7d69d0c-ed5b-4d78-b2b5-90dfe40c8aa2"
+
+LAND_REGISTER_ID = "493153d5-07ef-4743-8efd-07f4099772b9"
+CROP_REGISTER_ID = "5fa096f8-ffdc-4b0a-ab16-9ca386c23310"
+FARM_INPUTS_REGISTER_ID = "18df8370-3e9a-493f-aa27-fc1b9e05629c"
+MEMBERSHIP_REGISTER_ID = "495f251c-83a5-4025-a307-1925712c9d0b"
+LIVESTOCK_REGISTER_ID = "4bcb88a3-fc5e-44d2-abc6-e2c68670c5bb"
+
+# Immediate parent register (g2p_register_definitions.master_register_id).
+PARENT_REGISTER_ID = {
+    REGISTER_FARMER: None,
+    LAND_REGISTER_ID: REGISTER_FARMER,
+    CROP_REGISTER_ID: LAND_REGISTER_ID,
+    FARM_INPUTS_REGISTER_ID: LAND_REGISTER_ID,
+    LIVESTOCK_REGISTER_ID: LAND_REGISTER_ID,
+    MEMBERSHIP_REGISTER_ID: REGISTER_FARMER,
+}
+
+# Farmer → Land → Crop/FarmInputs/Livestock. Membership only needs Farmer.
+REGISTER_SAVE_RANK = {
+    REGISTER_FARMER: 0,
+    LAND_REGISTER_ID: 1,
+    MEMBERSHIP_REGISTER_ID: 2,
+    CROP_REGISTER_ID: 3,
+    FARM_INPUTS_REGISTER_ID: 3,
+    LIVESTOCK_REGISTER_ID: 3,
+}
 
 BIRTH_DATE = "1990-01-01"
 
@@ -107,7 +136,7 @@ SECTION_DEFS: dict[str, dict[str, Any]] = {
         },
     },
     "farmer_farm_farm_details_section_01": {
-        "section_register_id": "493153d5-07ef-4743-8efd-07f4099772b9",
+        "section_register_id": LAND_REGISTER_ID,
         "is_list": True,
         "standard_payload": {
             "land_ownership_type": "OWNER",
@@ -122,7 +151,7 @@ SECTION_DEFS: dict[str, dict[str, Any]] = {
         },
     },
     "farmer_crop_crop_details_section_01": {
-        "section_register_id": "5fa096f8-ffdc-4b0a-ab16-9ca386c23310",
+        "section_register_id": CROP_REGISTER_ID,
         "is_list": True,
         "standard_payload": {
             "commodity": "MAIZE",
@@ -132,7 +161,7 @@ SECTION_DEFS: dict[str, dict[str, Any]] = {
         },
     },
     "farmer_farm_input_farm_input_details_section_01": {
-        "section_register_id": "18df8370-3e9a-493f-aa27-fc1b9e05629c",
+        "section_register_id": FARM_INPUTS_REGISTER_ID,
         "is_list": True,
         "standard_payload": {
             "fertilizer_use": True,
@@ -145,7 +174,7 @@ SECTION_DEFS: dict[str, dict[str, Any]] = {
         },
     },
     "farmer_membership_membership_details_01": {
-        "section_register_id": "495f251c-83a5-4025-a307-1925712c9d0b",
+        "section_register_id": MEMBERSHIP_REGISTER_ID,
         "is_list": False,
         "standard_payload": {
             "is_primary_cooperative_member": True,
@@ -157,7 +186,7 @@ SECTION_DEFS: dict[str, dict[str, Any]] = {
         },
     },
     "farmer_livestock_livestock_details_section_01": {
-        "section_register_id": "4bcb88a3-fc5e-44d2-abc6-e2c68670c5bb",
+        "section_register_id": LIVESTOCK_REGISTER_ID,
         "is_list": True,
         "standard_payload": {
             "livestock_type": "CATTLE",
@@ -167,6 +196,8 @@ SECTION_DEFS: dict[str, dict[str, Any]] = {
         },
     },
 }
+
+SECTION_DEFS[INTAKE_CROP_SECTION_ID] = copy.deepcopy(SECTION_DEFS["farmer_crop_crop_details_section_01"])
 
 # One of these 9 attributes is randomized per invocation; everything else in
 # its section keeps the standard_payload value. Maps attribute -> (owning
@@ -225,6 +256,32 @@ def choose_random_attribute_override() -> tuple[str, str, Any]:
     return attribute_name, section_id, value_factory()
 
 
+def new_row_ids() -> dict[str, str]:
+    """Stable internal_record_id per register for one intake submission."""
+    return {
+        REGISTER_FARMER: str(uuid.uuid4()),
+        LAND_REGISTER_ID: str(uuid.uuid4()),
+        CROP_REGISTER_ID: str(uuid.uuid4()),
+        FARM_INPUTS_REGISTER_ID: str(uuid.uuid4()),
+        LIVESTOCK_REGISTER_ID: str(uuid.uuid4()),
+        MEMBERSHIP_REGISTER_ID: str(uuid.uuid4()),
+    }
+
+
+def order_sections_for_parent_links(section_ids: list[str]) -> list[str]:
+    """Farmer, then Land, then Crop/FarmInputs/Livestock (Land children)."""
+    return sorted(
+        section_ids,
+        key=lambda section_id: (
+            REGISTER_SAVE_RANK.get(
+                (SECTION_DEFS.get(section_id) or {}).get("section_register_id"),
+                99,
+            ),
+            section_ids.index(section_id),
+        ),
+    )
+
+
 def build_section_payload(
     section_id: str,
     attribute_name: str,
@@ -232,6 +289,7 @@ def build_section_payload(
     value: Any,
     household_id: str,
     search_anchor: str = "",
+    row_ids: dict[str, str] | None = None,
 ) -> dict:
     """This section's own fields, with the chosen attribute override applied if it's this section's turn.
 
@@ -239,14 +297,26 @@ def build_section_payload(
     merge_with_accumulated for that. search_anchor is embedded in first_name
     on the personal-identification section so search_in_intake_form_submissions
     can find the submission.
+
+    row_ids: per-register UUIDs for this submission. Farmer always links to
+    household_id; Crop/FarmInputs/Livestock link to Land; Land and Membership
+    link to Farmer.
     """
     payload = copy.deepcopy(SECTION_DEFS[section_id]["standard_payload"])
     if section_id == section_with_override:
         payload[attribute_name] = value
-    if section_id == HOUSEHOLD_LOOKUP_SECTION_ID:
-        payload["link_internal_record_id"] = household_id
     if section_id == PERSONAL_IDENTIFICATION_SECTION_ID:
         payload["first_name"], payload["middle_name"], payload["last_name"] = _random_name(search_anchor)
+    if row_ids:
+        register_id = SECTION_DEFS[section_id]["section_register_id"]
+        payload["internal_record_id"] = row_ids[register_id]
+        parent_register_id = PARENT_REGISTER_ID.get(register_id)
+        if register_id == REGISTER_FARMER:
+            payload["link_internal_record_id"] = household_id
+        elif parent_register_id:
+            payload["link_internal_record_id"] = row_ids[parent_register_id]
+    elif section_id == HOUSEHOLD_LOOKUP_SECTION_ID:
+        payload["link_internal_record_id"] = household_id
     return payload
 
 
