@@ -11,10 +11,12 @@ from shared.config import (
     FARMER_INTAKE_FORM_ID,
     FARMER_INTAKE_TAB_ID,
     INTAKE_SEARCH_HIT_RATE,
+    INTAKE_SEARCH_TERM_HITS,
+    INTAKE_SEARCH_TERMS,
     REGISTER_FARMER,
-    SEARCH_TERMS,
     STAFF_API_BASE,
 )
+from shared.term_pool import claim_create_term
 from shared.document_helpers import build_document_attachments, build_document_upload_files, extract_document_ids
 from shared.response_utils import safe_json
 from shared.slo_shape import SLOStepRampShape
@@ -44,21 +46,25 @@ class IntakeCreateUser(LocustUser):
     keeps a standard baseline value). All sections share one submission_id,
     captured from the first save_intake_form_submission response.
 
-    Search-text: sticky pool term per user. ~INTAKE_SEARCH_HIT_RATE of
-    submissions embed that term (findable by intake_read_and_approve);
-    the rest embed a unique miss-token so empty-result searches stay realistic.
+    Search-text: each submission claims a least-used exported term whose
+    DB hit count plus this-process creates stays under 2000.
+    ~INTAKE_SEARCH_HIT_RATE of submissions embed that term; the rest embed
+    a unique miss-token so empty-result searches stay realistic.
     """
 
     host = STAFF_API_BASE
+    _embed_counts: dict[str, int] = {}
 
     def on_start(self):
         super().on_start()
-        self.search_text = random.choice(SEARCH_TERMS) if SEARCH_TERMS else ""
-        print(f"\nDEBUG SEARCH_TERM sticky -> {self.search_text!r}\n")
+        self.search_text = ""
 
     def _search_anchor_for_create(self) -> str:
         """Pool term ~80% of the time; unique miss-token otherwise."""
-        if self.search_text and random.random() < INTAKE_SEARCH_HIT_RATE:
+        if INTAKE_SEARCH_TERMS and random.random() < INTAKE_SEARCH_HIT_RATE:
+            self.search_text = claim_create_term(
+                INTAKE_SEARCH_TERMS, self._embed_counts, INTAKE_SEARCH_TERM_HITS
+            )
             return self.search_text
         return f"xmiss{uuid.uuid4().hex[:10]}"
 

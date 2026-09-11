@@ -36,6 +36,42 @@ set +u
 source ./env.sh
 set -u
 
+# Farmer CPU polls `kubectl top` in this process. Always the perftest
+# kubeconfig (Rancher download), not ~/.kube/openg2p.yaml.
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/perftest.yaml}"
+if [[ ! -f "$KUBECONFIG" ]]; then
+  echo "Missing ${KUBECONFIG}. Download it from Rancher and:" >&2
+  echo "  export KUBECONFIG=\$HOME/.kube/perftest.yaml" >&2
+  exit 1
+fi
+
+KUBE_NS="${STAFF_API_KUBE_NAMESPACE:-perftest}"
+POD_GREP="${STAFF_API_POD_GREP:-farmer-registry-staff-portal-api}"
+if kubectl config get-contexts -o name 2>/dev/null | grep -qx perftest; then
+  kubectl config use-context perftest >/dev/null
+elif [[ "$(kubectl config current-context 2>/dev/null || true)" != "perftest" ]]; then
+  kubectl config rename-context "$(kubectl config current-context)" perftest >/dev/null
+fi
+
+echo "=== kubectl (farmer CPU) ==="
+echo "KUBECONFIG: ${KUBECONFIG:-<default>}"
+echo "context: $(kubectl config current-context 2>/dev/null || echo '<none>')"
+if ! kubectl get ns "$KUBE_NS" >/dev/null 2>&1; then
+  echo "kubectl cannot see namespace ${KUBE_NS}." >&2
+  echo "Download the perftest kubeconfig from Rancher and:" >&2
+  echo "  export KUBECONFIG=\$HOME/.kube/perftest.yaml" >&2
+  echo "  kubectl get ns ${KUBE_NS}" >&2
+  echo "  kubectl top pod -n ${KUBE_NS} --no-headers | grep ${POD_GREP}" >&2
+  exit 1
+fi
+if ! kubectl top pod -n "$KUBE_NS" --no-headers 2>/dev/null | grep -q "$POD_GREP"; then
+  echo "kubectl top returned no pods matching ${POD_GREP} in ${KUBE_NS}." >&2
+  echo "Check: kubectl top pod -n ${KUBE_NS} --no-headers | grep ${POD_GREP}" >&2
+  exit 1
+fi
+echo "kubectl top ok for ${POD_GREP} in ${KUBE_NS}"
+echo "================================="
+
 # STEP is "<ordinal>-<name>", e.g. "1-isolated" -- strip the ordinal, it's
 # just for readable ordering in env.sh, not part of any path.
 STEP_NAME="${STEP#*-}"

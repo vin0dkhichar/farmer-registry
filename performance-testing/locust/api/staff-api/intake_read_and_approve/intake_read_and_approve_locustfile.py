@@ -10,7 +10,7 @@ from shared.config import (
     INTAKE_SEARCH_HIT_RATE,
     INTAKE_SEARCH_PAGE_SIZE,
     REGISTER_FARMER,
-    SEARCH_TERMS,
+    INTAKE_SEARCH_TERMS,
     STAFF_API_BASE,
 )
 from shared.response_utils import safe_json
@@ -62,7 +62,7 @@ class IntakeReadAndApproveUser(LocustUser):
 
     def on_start(self):
         super().on_start()
-        self.search_terms = list(SEARCH_TERMS)
+        self.search_terms = list(INTAKE_SEARCH_TERMS)
         random.shuffle(self.search_terms)
         self._term_index = 0
         self._claimed_term: str | None = None

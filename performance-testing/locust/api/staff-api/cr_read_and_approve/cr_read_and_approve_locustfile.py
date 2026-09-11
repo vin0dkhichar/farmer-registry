@@ -5,7 +5,7 @@ import random
 from locust import tag, task
 
 from shared.base_user import LocustUser
-from shared.config import CR_SEARCH_PAGE_SIZE, REGISTER_FARMER, SEARCH_TERMS, STAFF_API_BASE
+from shared.config import CR_SEARCH_PAGE_SIZE, CR_SEARCH_TERMS, REGISTER_FARMER, STAFF_API_BASE
 from shared.response_utils import safe_json
 from shared.slo_shape import SLOStepRampShape
 from cr_read_and_approve_helpers import (
@@ -66,7 +66,7 @@ class CrReadAndApproveUser(LocustUser):
         # recovers when the sticky term has no pending CRs (common when
         # cr_create mostly edited non-farmer sections). See
         # cr_read_and_approve_helpers.search_term_candidates.
-        self.search_terms = list(SEARCH_TERMS)
+        self.search_terms = list(CR_SEARCH_TERMS)
         random.shuffle(self.search_terms)
         self._term_index = 0
         self._claimed_term: str | None = None

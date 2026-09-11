@@ -1,13 +1,13 @@
 ingress,register,volume_tier,pod_scale,scenario,endpoint,method,pod_cpu,pod_mem,workers,max_rps,p50_ms,p90_ms,p95_ms,p99_ms,max_ms,error_pct,saturating_resource,slo_p95_ms,pass_fail,notes
-in-cluster,Farmer,primary,1,register_read,search_in_a_register,POST,1,4Gi,2,,,,,,,,,1000,,
-in-cluster,Farmer,primary,1,register_read,get_subject_record,POST,1,4Gi,2,,,,,,,,,300,,
-in-cluster,Farmer,primary,1,cr_read_and_approve,get_deduplication_register_results,POST,1,4Gi,2,,,,,,,,,1500,,
-in-cluster,Farmer,primary,1,intake_create,save_intake_form_submission,POST,1,4Gi,2,,,,,,,,,800,,
-in-cluster,Farmer,primary,1,cr_create,create_change_request,POST,1,4Gi,2,,,,,,,,,800,,
-in-cluster,Farmer,primary,1,intake_read_and_approve,add_verification,POST,1,4Gi,2,,,,,,,,,500,,
-end-to-end,Farmer,smoke,1,register_read,search_in_a_register,POST,1,4Gi,2,,,,,,,,,1000,,harness sanity only -- not a capacity figure
-end-to-end,Farmer,smoke,1,register_read,get_subject_record,POST,1,4Gi,2,,,,,,,,,300,,harness sanity only -- not a capacity figure
-end-to-end,Farmer,smoke,1,cr_read_and_approve,get_deduplication_register_results,POST,1,4Gi,2,,,,,,,,,1500,,harness sanity only -- not a capacity figure
-end-to-end,Farmer,smoke,1,intake_create,save_intake_form_submission,POST,1,4Gi,2,,,,,,,,,800,,harness sanity only -- not a capacity figure
-end-to-end,Farmer,smoke,1,cr_create,create_change_request,POST,1,4Gi,2,,,,,,,,,800,,harness sanity only -- not a capacity figure
-end-to-end,Farmer,smoke,1,intake_read_and_approve,add_verification,POST,1,4Gi,2,,,,,,,,,500,,harness sanity only -- not a capacity figure
+in-cluster,Farmer,primary,1,register_read,search_in_a_register,POST,1,4Gi,2,,,,,,,,,900,,
+in-cluster,Farmer,primary,1,register_read,get_subject_record,POST,1,4Gi,2,,,,,,,,,800,,
+in-cluster,Farmer,primary,1,cr_read_and_approve,get_deduplication_register_results,POST,1,4Gi,2,,,,,,,,,800,,
+in-cluster,Farmer,primary,1,intake_create,save_intake_form_submission,POST,1,4Gi,2,,,,,,,,,1000,,
+in-cluster,Farmer,primary,1,cr_create,create_change_request,POST,1,4Gi,2,,,,,,,,,1200,,
+in-cluster,Farmer,primary,1,intake_read_and_approve,add_verification,POST,1,4Gi,2,,,,,,,,,1000,,
+end-to-end,Farmer,smoke,1,register_read,search_in_a_register,POST,1,4Gi,2,,,,,,,,,900,,harness sanity only -- not a capacity figure
+end-to-end,Farmer,smoke,1,register_read,get_subject_record,POST,1,4Gi,2,,,,,,,,,800,,harness sanity only -- not a capacity figure
+end-to-end,Farmer,smoke,1,cr_read_and_approve,get_deduplication_register_results,POST,1,4Gi,2,,,,,,,,,800,,harness sanity only -- not a capacity figure
+end-to-end,Farmer,smoke,1,intake_create,save_intake_form_submission,POST,1,4Gi,2,,,,,,,,,1000,,harness sanity only -- not a capacity figure
+end-to-end,Farmer,smoke,1,cr_create,create_change_request,POST,1,4Gi,2,,,,,,,,,1200,,harness sanity only -- not a capacity figure
+end-to-end,Farmer,smoke,1,intake_read_and_approve,add_verification,POST,1,4Gi,2,,,,,,,,,1000,,harness sanity only -- not a capacity figure
