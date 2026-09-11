@@ -98,17 +98,11 @@ case "$STEP_NAME" in
     CSV_PREFIX="results/staff-api/${INGRESS}/${VOLUME_TIER}/pod-${POD_SCALE}/${STEP}/${SCENARIO_DIR}/${SCENARIO_DIR}"
     ;;
   blended)
-    echo "WARNING: no combined blended-mix locustfile exists yet (see" >&2
-    echo "documentation/staff-api/test-scenarios.md §4) -- using the" >&2
-    echo "compatibility shim locustfile.py, which does nothing." >&2
-    LOCUSTFILE="locustfile.py"
+    LOCUSTFILE="staff-api/blended/blended_locustfile.py"
     CSV_PREFIX="results/staff-api/${INGRESS}/${VOLUME_TIER}/pod-${POD_SCALE}/${STEP}/blended"
     ;;
   soak)
-    echo "WARNING: no combined blended-mix locustfile exists yet (see" >&2
-    echo "documentation/staff-api/test-scenarios.md §4) -- using the" >&2
-    echo "compatibility shim locustfile.py, which does nothing." >&2
-    LOCUSTFILE="locustfile.py"
+    LOCUSTFILE="staff-api/blended/blended_locustfile.py"
     CSV_PREFIX="results/staff-api/${INGRESS}/${VOLUME_TIER}/pod-${POD_SCALE}/${STEP}/soak"
     ;;
   db-sweep)
