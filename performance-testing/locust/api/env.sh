@@ -27,13 +27,13 @@ export VOLUME_TIER=primary
 # export VOLUME_TIER=stress
 
 # Pod-Scale -- app replica count under test. Uncomment exactly one.
-# export POD_SCALE=1
+export POD_SCALE=1
 # export POD_SCALE=2
-export POD_SCALE=3
+# export POD_SCALE=3
 
 # Step -- see documentation/staff-api/test-scenarios.md §3/§7. Uncomment exactly one.
-export STEP=1-isolated
-# export STEP=2-blended
+# export STEP=1-isolated
+export STEP=2-blended
 # export STEP=3-soak
 # export STEP=4-db-sweep
 
@@ -43,7 +43,7 @@ export STEP=1-isolated
 # export ISOLATED_SCENARIO=cr-create
 # export ISOLATED_SCENARIO=cr-read-and-approve
 # export ISOLATED_SCENARIO=intake-create
-export ISOLATED_SCENARIO=intake-read-and-approve
+# export ISOLATED_SCENARIO=intake-read-and-approve
 
 # =============================================================================
 # SLOs -- documentation/staff-api/test-scenarios.md §5.

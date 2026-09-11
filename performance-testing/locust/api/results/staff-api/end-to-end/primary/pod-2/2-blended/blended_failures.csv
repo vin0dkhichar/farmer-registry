@@ -1,0 +1,6 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,search_in_intake_form_submissions,CatchResponseError('503'),1,2026-09-11T11:00:35Z,2026-09-11T11:00:35Z
+POST,get_tab_sections,CatchResponseError('503'),1,2026-09-11T11:03:08Z,2026-09-11T11:03:08Z
+POST,get_number_of_versions,CatchResponseError('503'),1,2026-09-11T11:06:27Z,2026-09-11T11:06:27Z
+POST,get_tab_records,CatchResponseError('503'),1,2026-09-11T11:07:19Z,2026-09-11T11:07:19Z
+POST,submit_task_decision,CatchResponseError('503'),1,2026-09-11T11:05:36Z,2026-09-11T11:05:36Z

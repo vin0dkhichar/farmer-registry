@@ -1,0 +1,7 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,get_deduplication_intake_form_register_results,CatchResponseError('503'),2,2026-09-11T10:49:20Z,2026-09-11T10:49:39Z
+POST,save_intake_form_submission,CatchResponseError('503'),1,2026-09-11T10:48:06Z,2026-09-11T10:48:06Z
+POST,list_tasks_for_request,CatchResponseError('AWE-ERR-006: AWE_REQUEST_FAILED: upstream connect error or disconnect/reset before headers. reset reason: connection termination (url=https://awe.perftest.openg2p.org/v1/awe/tasks?assignee=%2A&page=1&page_size=20&request_id=c0d3621d-9feb-43c7-adf8-982b4930d379)'),1,2026-09-11T10:48:32Z,2026-09-11T10:48:32Z
+POST,create_change_request,CatchResponseError('SYS-ERR-001: UNEXPECTED_ERROR'),1,2026-09-11T10:52:36Z,2026-09-11T10:52:36Z
+POST,get_number_of_pending_change_requests,CatchResponseError('503'),1,2026-09-11T10:51:31Z,2026-09-11T10:51:31Z
+POST,save_intake_form_submission,"CatchResponseError(""REQ-VAL-000: link_internal_record_id 'df6d0633-a37e-4010-89d6-b3fe9e92f297' is not an allowed parent for this submission"")",1,2026-09-11T10:48:07Z,2026-09-11T10:48:07Z
