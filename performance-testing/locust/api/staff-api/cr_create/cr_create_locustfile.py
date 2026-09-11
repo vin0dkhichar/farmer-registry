@@ -7,12 +7,15 @@ from locust import tag, task
 from shared.base_user import LocustUser
 from shared.config import (
     CR_FIELD_BY_SECTION,
+    CR_SEARCH_TERM_HITS,
     DOCUMENT_UPLOAD_BUCKET,
     REGISTER_FARMER,
     SEARCH_PAGE_SIZE,
+    SEARCH_TERM_HITS,
     SEARCH_TERMS,
     STAFF_API_BASE,
 )
+from shared.term_pool import claim_create_term
 from shared.document_helpers import build_document_attachments, build_document_upload_files, extract_document_ids
 from shared.response_utils import safe_json
 from shared.slo_shape import SLOStepRampShape
@@ -50,43 +53,26 @@ class CrCreateUser(LocustUser):
 
     host = STAFF_API_BASE
 
-    # Shared across all CrCreateUser greenlets in this process: how many
-    # currently-live users are sticky on each term, so on_start can join
-    # whichever term is least contended right now. Spreads users across more
-    # distinct records, reducing (not eliminating -- there's no server-side
-    # per-section pending-CR uniqueness guard confirmed yet) the odds that two
-    # concurrent users independently create change requests against the same
-    # record's same section. True exclusivity isn't achievable here anyway
-    # once concurrent users outnumber len(SEARCH_TERMS), which a
-    # ramp-to-failure run is designed to do.
+    # Process-wide create counts: seed_hits (from perf-seed) + these stay
+    # under PERF_SEED_HIT_MAX so one term does not collect >2k new CRs.
     _term_usage_counts: dict[str, int] = {}
+    _embed_counts: dict[str, int] = {}
 
     def on_start(self):
         super().on_start()
-        # Sticky per user for its whole session -- see
-        # staff-api/register_read/register_read_locustfile.py /
-        # documentation/seeding-design.md "Search-text anchors".
-        self.search_text = self._claim_least_used_term()
-        print(f"\nDEBUG SEARCH_TERM anchored -> {self.search_text}\n")
+        self.search_text = ""
 
-    def on_stop(self):
-        if self.search_text:
-            self._term_usage_counts[self.search_text] = max(
-                0, self._term_usage_counts.get(self.search_text, 0) - 1
-            )
+    def _claim_register_term(self) -> str:
+        return claim_create_term(SEARCH_TERMS, self._term_usage_counts, SEARCH_TERM_HITS)
 
-    def _claim_least_used_term(self) -> str:
-        if not SEARCH_TERMS:
-            return ""
-        min_count = min(self._term_usage_counts.get(term, 0) for term in SEARCH_TERMS)
-        least_used = [term for term in SEARCH_TERMS if self._term_usage_counts.get(term, 0) == min_count]
-        term = random.choice(least_used)
-        self._term_usage_counts[term] = self._term_usage_counts.get(term, 0) + 1
-        return term
+    def _claim_embed_term(self) -> str:
+        return claim_create_term(SEARCH_TERMS, self._embed_counts, CR_SEARCH_TERM_HITS)
 
     @tag("change_request", "write")
     @task
     def create_change_requests(self):
+        self.search_text = self._claim_register_term()
+        print(f"\nDEBUG SEARCH_TERM register -> {self.search_text}\n")
         self._get_register_summary_data()
 
         page1_response = self._search_in_a_register(current_page=1)
@@ -143,8 +129,15 @@ class CrCreateUser(LocustUser):
                 attribute_values_response_json = safe_json(self._get_attribute_values(attribute_id))
                 print(f"\nDEBUG get_attribute_values({attribute_id}) response -> {attribute_values_response_json}\n")
                 enum_options = attribute_value_options(attribute_values_response_json)
-        new_value = generate_new_value(field_name, old_value, enum_options, search_anchor=self.search_text)
-        print(f"\nDEBUG FIELD {field_name} -> old={old_value!r} new={new_value!r}\n")
+        will_embed = (
+            enum_options is None
+            and field_name not in ("link_internal_record_id", "head_count", "functional_record_id")
+        )
+        embed_term = self._claim_embed_term() if will_embed else ""
+        new_value = generate_new_value(
+            field_name, old_value, enum_options, search_anchor=embed_term or None
+        )
+        print(f"\nDEBUG FIELD {field_name} -> old={old_value!r} new={new_value!r} embed={embed_term!r}\n")
 
         documents = None
         if meta.get("documents_required"):

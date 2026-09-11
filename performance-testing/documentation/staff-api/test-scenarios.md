@@ -141,8 +141,8 @@ standalone Locust `User` class, run in isolation for Step 1 (§3); a blended
 locustfile for Steps 2–3 is follow-up work. All 5 acquire one OIDC token per
 simulated user at `on_start`, cached and refreshed on expiry.
 
-Each endpoint's **Class** groups it for SLO purposes — see §5 for the p95/p99
-target per class.
+Each endpoint has its **own** p95/p99 SLO — see §5. The Class column is only
+a scenario grouping, not a shared latency budget.
 
 ### `register_read/` — browse + version-history read, including change requests per tab
 
@@ -281,24 +281,19 @@ has run (same reasoning as `cr_read_and_approve`).
 `get_file_url` (`/documents/get_file_url`, Document-Fetch class) isn't fired
 by any of the 5 scenarios yet — its SLO (§5) is reserved for future use.
 
-## 5. Service-Level Objectives (per endpoint class)
+## 5. Service-Level Objectives (per endpoint)
 
-Classes match the Class column in each scenario's endpoint table (§4), so
-every endpoint has one unambiguous SLO.
+Each Locust `name=` has its own p95/p99 in `locust/api/env.sh` (`ENDPOINT_SLOS`).
+The ramp checks that pair, not a class-wide number.
 
-| Class | Examples | p95 SLO | p99 SLO |
-|------|----------|--------:|--------:|
-| Metadata-Read | `get_all_tabs`, `get_all_sections`, `get_section_ui_schema`, `get_attribute_values` | 200 ms | 400 ms |
-| Register-Read | `get_subject_record`, `get_tab_records`, `get_number_of_versions`, `get_deduplication_register_results` | 300 ms | 600 ms |
-| Change-Request-Read | `get_change_request`, `check_change_request_sequence`, `get_deduplication_change_request_results` | 300 ms | 600 ms |
-| Intake-Submission-Read | `get_intake_form_submission`, `get_intake_form_submissions_summary` | 300 ms | 600 ms |
-| Register-Search | `search_in_a_register`, `search_in_change_request`, `search_in_intake_form_submissions` | 1000 ms | 1500 ms |
-| Change-Request-Write | `create_change_request`, `create_change_request_for_core_data` | 800 ms | 1200 ms |
-| Intake-Submission-Write | `save_intake_form_submission`, `finalize_intake_form_submission` | 800 ms | 1200 ms |
-| Workflow-Read | `list_tasks_for_request` | 500 ms | 800 ms |
-| Workflow-Write | `submit_task_decision` | 500 ms | 800 ms |
-| Document-Fetch | `get_file_url`, `get_change_request_documents`, `get_intake_form_documents` | 500 ms | 800 ms |
-| Document-Upload | `upload_documents` | 1500 ms (size-dependent) | — |
+Bands (primary isolated stats):
+
+| Kind | p95 | p99 | Applies to |
+|------|----:|----:|---|
+| Read | 800 ms | 1000 ms | Metadata, register/CR/intake GETs, document fetch, `list_tasks_for_request` |
+| Search | 900 ms | 1000 ms | `search_in_a_register`, `search_in_change_request`, `search_in_intake_form_submissions` |
+| Write | 1000 ms | 1200 ms | `save_intake_form_submission`, `upload_documents` |
+| Write + AWE | 1200 ms | 1400 ms | `create_change_request`, `create_change_request_for_core_data`, `finalize_intake_form_submission`, `submit_task_decision` |
 
 ## 6. Pass / fail criteria
 

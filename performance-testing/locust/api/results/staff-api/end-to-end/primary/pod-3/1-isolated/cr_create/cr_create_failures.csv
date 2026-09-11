@@ -1,0 +1,5 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,create_change_request,CatchResponseError('503'),1,2026-09-10T18:17:38Z,2026-09-10T18:17:38Z
+POST,create_change_request,CatchResponseError('SYS-ERR-001: UNEXPECTED_ERROR'),3,2026-09-10T18:19:07Z,2026-09-10T18:23:35Z
+POST,get_tab_records,CatchResponseError('503'),1,2026-09-10T18:17:15Z,2026-09-10T18:17:15Z
+POST,get_subject_record,CatchResponseError('503'),1,2026-09-10T18:26:38Z,2026-09-10T18:26:38Z

@@ -63,16 +63,71 @@ def _manifest_list(manifest: dict, key: str) -> list[str]:
 
 _SEED_MANIFEST_DATA = _load_seed_manifest()
 
+_DEFAULT_PERF_SEED_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "perf-seed")
+)
+PERF_SEED_DIR = os.environ.get("PERF_SEED_DIR", _DEFAULT_PERF_SEED_DIR)
+
+
+PERF_SEED_HIT_MAX = int(os.environ.get("PERF_SEED_HIT_MAX", "2000"))
+
+
+def _load_perf_seed_file(filename: str) -> tuple[list[str], dict[str, int]]:
+    path = os.path.join(PERF_SEED_DIR, filename)
+    if not os.path.isfile(path):
+        return [], {}
+    values: list[str] = []
+    hits: dict[str, int] = {}
+    try:
+        with open(path) as handle:
+            for raw in handle:
+                line = raw.strip()
+                if not line:
+                    continue
+                if line.lstrip().startswith("#"):
+                    body = line.lstrip("#").strip()
+                    if "\t" in body:
+                        term, _, rest = body.partition("\t")
+                        if rest.strip().isdigit():
+                            hits[term.strip()] = int(rest.strip())
+                    continue
+                values.append(line)
+    except OSError as exc:
+        print(f"[shared.config] could not load perf-seed file at {path!r}: {exc}", file=sys.stderr)
+        return [], {}
+    if not values:
+        print(f"[shared.config] perf-seed file at {path!r} is empty", file=sys.stderr)
+        return [], hits
+    print(f"[shared.config] loaded {len(values)} values from {path}", file=sys.stderr)
+    return values, hits
+
+
+def _load_perf_seed_lines(filename: str) -> list[str]:
+    values, _hits = _load_perf_seed_file(filename)
+    return values
+
+
 # internal_record_ids of seeded Household register records — the
 # farmer_household_lookup_section_01 section links a farmer intake submission
-# to one of these.
-HOUSEHOLD_IDS = _manifest_list(_SEED_MANIFEST_DATA, "household_ids")
+# to one of these. Prefer openg2p/perf-seed/household_ids.txt when present.
+HOUSEHOLD_IDS = _load_perf_seed_lines("household_ids.txt") or _manifest_list(
+    _SEED_MANIFEST_DATA, "household_ids"
+)
 
-# 4-char anchors embedded in every seeded Farmer's first_name (see
-# performance-testing/seeding/search_anchors.py). Each register_read Locust
-# user anchors to one of these for its whole session — see
-# staff-api/register_read/register_read_locustfile.py.
-SEARCH_TERMS = _manifest_list(_SEED_MANIFEST_DATA, "search_terms")
+# Exported from perftest via scripts/export_perf_seed.py. Create flows skip
+# terms whose comment hit-count is already at PERF_SEED_HIT_MAX (2000).
+SEARCH_TERMS, SEARCH_TERM_HITS = _load_perf_seed_file("register_search_terms.txt")
+if not SEARCH_TERMS:
+    SEARCH_TERMS = _manifest_list(_SEED_MANIFEST_DATA, "search_terms")
+    SEARCH_TERM_HITS = {}
+INTAKE_SEARCH_TERMS, INTAKE_SEARCH_TERM_HITS = _load_perf_seed_file("intake_search_terms.txt")
+if not INTAKE_SEARCH_TERMS:
+    INTAKE_SEARCH_TERMS = list(SEARCH_TERMS)
+    INTAKE_SEARCH_TERM_HITS = dict(SEARCH_TERM_HITS)
+CR_SEARCH_TERMS, CR_SEARCH_TERM_HITS = _load_perf_seed_file("cr_search_terms.txt")
+if not CR_SEARCH_TERMS:
+    CR_SEARCH_TERMS = list(SEARCH_TERMS)
+    CR_SEARCH_TERM_HITS = dict(SEARCH_TERM_HITS)
 
 # Register browsing flow (staff-api/register_read/register_read_locustfile.py)
 SEARCH_PAGE_SIZE = int(os.environ.get("SEARCH_PAGE_SIZE", "10"))
@@ -110,7 +165,7 @@ CR_FIELD_BY_SECTION = {
     "farmer_farmer_personal_identification_section_01": "middle_name",
     "farmer_farmer_socio_economic_and_health_section_04": "source_of_income_other",
     "farmer_farmer_location_section_03": "address_line_1",
-    "farmer_farm_farm_details_section_01": "soil_fertility",
+    "farmer_farm_farm_details_section_01": "address_line_1",
     "farmer_crop_crop_details_section_01": "season",
     "farmer_farm_input_farm_input_details_section_01": "access_to_finance",
     "farmer_membership_membership_details_01": "primary_cooperative_name",

@@ -7,47 +7,26 @@ from collections import Counter
 from locust import LoadTestShape, events
 from locust.stats import calculate_response_time_percentile
 
-# Endpoint classes -- must match the *_ENDPOINTS / SLO_P95_*_MS section names
-# in env.sh exactly (documentation/staff-api/test-scenarios.md §5).
-SLO_CLASSES = [
-    "METADATA_READ",
-    "REGISTER_READ",
-    "CHANGE_REQUEST_READ",
-    "INTAKE_SUBMISSION_READ",
-    "REGISTER_SEARCH",
-    "CHANGE_REQUEST_WRITE",
-    "INTAKE_SUBMISSION_WRITE",
-    "WORKFLOW_READ",
-    "WORKFLOW_WRITE",
-    "DOCUMENT_FETCH",
-    "DOCUMENT_UPLOAD",
-]
-
-
 def _load_endpoint_slo_ms() -> tuple[dict[str, int], dict[str, int]]:
-    """Two endpoint -> SLO-ms maps (p95, p99), built from env.sh's per-class
-    sections. A single shared pair of maps works for every scenario: each
-    scenario's Locust run only ever produces stats.entries for the endpoints
-    it actually fires, so SLOStepRampShape naturally only checks the subset
-    relevant to whichever scenario is running -- no per-scenario map needed.
+    """Per-endpoint p95/p99 (ms) from env.sh ENDPOINT_SLOS.
+
+    Each line is ``<locust name> <p95_ms> <p99_ms>``. A run only stats the
+    endpoints it fires, so the shape checks that subset against each name's
+    own pair -- no shared class SLO.
     """
     p95_mapping: dict[str, int] = {}
     p99_mapping: dict[str, int] = {}
-    for cls in SLO_CLASSES:
-        p95_env = os.environ.get(f"SLO_P95_{cls}_MS")
-        p99_env = os.environ.get(f"SLO_P99_{cls}_MS")
-        endpoints_env = os.environ.get(f"{cls}_ENDPOINTS", "")
-        if not p95_env or not endpoints_env:
+    for raw_line in os.environ.get("ENDPOINT_SLOS", "").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
             continue
-        p95 = int(p95_env)
-        p99 = int(p99_env) if p99_env else None
-        for name in endpoints_env.split(","):
-            name = name.strip()
-            if not name:
-                continue
-            p95_mapping[name] = p95
-            if p99 is not None:
-                p99_mapping[name] = p99
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        name = parts[0]
+        p95_mapping[name] = int(parts[1])
+        if len(parts) >= 3:
+            p99_mapping[name] = int(parts[2])
     return p95_mapping, p99_mapping
 
 
@@ -59,6 +38,8 @@ STAFF_API_CPU: dict = {
     "hottest_cores": None,
     "total_cores": None,
     "limit_cores": float(os.environ.get("CPU_BREACH_CORES", "1.8")),
+    "over_limit": 0,
+    "need_over_limit": 1,
     "polls": 0,
     "error": None,
     "pods": [],
@@ -107,6 +88,7 @@ def _farmer_cpu_live_html() -> str:
         "pods=" + pods.length +
         " total=" + data.total_cores +
         " hottest=" + data.hottest_cores +
+        " over=" + data.over_limit + "/" + data.need_over_limit +
         " limit=" + data.limit_cores +
         " polls=" + data.polls +
         (data.error ? " error=" + data.error : "");
@@ -174,47 +156,24 @@ def _parse_kubectl_cpu(token: str) -> float:
 
 class SLOStepRampShape(LoadTestShape):
     """
-    Step-1 (isolated) ramp-to-breach-then-soak shape, driven by
-    ENDPOINT_SLO_P95_MS / ENDPOINT_SLO_P99_MS (loaded from env.sh, not
-    hardcoded -- see documentation/staff-api/test-scenarios.md §4/§5). A
-    scenario fires endpoints from several different SLO classes in one run
-    (e.g. register_read touches Metadata-Read and Register-Search), so this
-    checks each endpoint against its own class's SLOs, not the whole run
-    against one number.
+    Step-1 isolated ramp, driven by ENDPOINT_SLO_P95_MS / ENDPOINT_SLO_P99_MS
+    (env.sh ENDPOINT_SLOS). Checks only endpoints this run actually fires.
 
-    Starts with warmup_seconds at warmup_users with NO SLO checks (cold
-    cache / first-connection noise is discarded). Then ramps +step_users
-    every step_seconds. Once any tracked endpoint (with enough *successful*
-    samples this step) breaches its own p95 OR p99 SLO, the ramp freezes at
-    the last good user count and holds for sustain_seconds, printing p95/p99
-    during that soak, then stops. If a farmer staff-api replica reaches
-    CPU_BREACH_CORES, the ramp also freezes at the current user count.
-    Per-pod CPU is shown on /farmer-cpu, not in Locust Statistics.
+    Starts with warmup_seconds at warmup_users with NO SLO checks. Then ramps
+    +step_users every step_seconds up to max_users. There is no per-user RPS
+    cap; each user fires sequential HTTP as fast as the API answers. CPU
+    freeze: if 3+ replicas, 2 pods must be at CPU_BREACH_CORES; if 1 or 2
+    replicas, 1 pod is enough. On CPU or SLO, freeze that user count (no
+    step-down) and soak sustain_seconds. Reaching max_users also soaks then
+    stops.
 
-    If max_users is reached with no breach, it stops immediately without a
-    soak.
+    503s/other failures are logged but do not freeze the ramp and do not
+    feed p95/p99. Only successful request times count.
 
-    503s/other failures are logged but do NOT stop or freeze the ramp, and
-    do NOT feed the p95/p99 calculation used to decide a breach either --
-    only successful requests' response times count toward SLO checks (a
-    failed request's "response time" -- e.g. a near-instant connection
-    reset -- isn't a real latency sample, and Locust's own
-    get_current_response_time_percentile() would otherwise silently mix
-    failed and successful requests together). This shape tracks its own
-    per-step, success-only response-time samples via a `request` event
-    listener rather than relying on that built-in.
+    NOTE: -u/-r/-t are ignored once a custom shape is active.
 
-    NOTE: -u/-r/-t are ignored by Locust once a custom shape is active (see
-    COMMON_OPTIONS in locust/main.py) -- this class owns its entire stop
-    condition, including the max_users safety net.
-
-    NOTE: register_read's get_record_history has a known upstream bug
-    (SYS-ERR-001 -- see documentation/seeding-design.md) causing 100%
-    failures. It's deliberately excluded from REGISTER_READ_ENDPOINTS in
-    env.sh (commented-out toggle to re-add it once fixed) -- since failures
-    no longer freeze/stop the ramp on their own, this is now a labeling
-    concern rather than a ramp-killer, but it's still excluded to keep
-    register_read's failure log free of a known, unrelated noise source.
+    NOTE: register_read's get_record_history is omitted from ENDPOINT_SLOS
+    (SYS-ERR-001).
     """
 
     # Base class, not meant to be run directly -- must NOT be auto-detected
@@ -232,15 +191,15 @@ class SLOStepRampShape(LoadTestShape):
     endpoint_slo_p99_ms: dict[str, int] = ENDPOINT_SLO_P99_MS
     step_seconds = 30
     step_users = 4
-    max_users = 100
+    max_users = int(os.environ.get("MAX_USERS", "100"))
     # Docs §7: warm 1–5 min and discard. Hold at warmup_users with no SLO
     # checks so cold-start latency cannot freeze the ramp.
-    warmup_seconds = 1 * 60
+    warmup_seconds = 1 * 20
     warmup_users = 2
     # Need enough success samples for a meaningful percentile; 5 made p95
     # ≈ max-of-5 and let a single outlier freeze the ramp.
     min_requests_for_check = 100
-    sustain_seconds = 10 * 60
+    sustain_seconds = int(float(os.environ.get("SUSTAIN_MINUTES", "10")) * 60)
     cpu_breach_cores = float(os.environ.get("CPU_BREACH_CORES", "1.8"))
     kube_namespace = os.environ.get("STAFF_API_KUBE_NAMESPACE", "perftest")
     pod_grep = os.environ.get("STAFF_API_POD_GREP", "farmer-registry-staff-portal-api")
@@ -251,18 +210,20 @@ class SLOStepRampShape(LoadTestShape):
         self._step = -1
         self._step_start: dict[tuple[str, str], tuple[int, int]] = {}
         self._step_success_times: dict[tuple[str, str], list[int]] = {}
-        self._breach_user_count: int | None = None
-        self._breach_run_time: float | None = None
-        self._breach_reason: str | None = None
-        self._soak_started = False
-        self._soak_last_report_at: float | None = None
-        self._soak_slo_failed = False
         self._listener_registered = False
         self._warmup_done_logged = False
         self._cpu_skip_logged = False
         self._last_cpu_poll_at = 0.0
         self._last_cpu_cores: float | None = None
         self._last_hot_cores: float | None = None
+        self._last_cpu_over: int = 0
+        self._last_cpu_need: int = 1
+        self._hold_users: int | None = None
+        self._hold_run_time: float | None = None
+        self._hold_reason: str | None = None
+        self._soak_started = False
+        self._soak_last_report_at: float | None = None
+        self._soak_slo_failed = False
         self._tracked_names = set(self.endpoint_slo_p95_ms) | set(self.endpoint_slo_p99_ms)
 
     def _on_request(self, request_type, name, response_time, response_length, exception=None, **_kwargs):
@@ -293,6 +254,7 @@ class SLOStepRampShape(LoadTestShape):
         if run_time - self._last_cpu_poll_at < self.cpu_poll_seconds and self._last_cpu_poll_at > 0:
             return self._last_hot_cores
         self._last_cpu_poll_at = run_time
+        # Same kube context as locust-staff-api.sh — log in before starting Locust.
         try:
             result = subprocess.run(
                 ["kubectl", "top", "pod", "-n", self.kube_namespace, "--no-headers"],
@@ -308,6 +270,8 @@ class SLOStepRampShape(LoadTestShape):
             STAFF_API_CPU["error"] = str(exc)
             self._last_cpu_cores = None
             self._last_hot_cores = None
+            self._last_cpu_over = 0
+            self._last_cpu_need = 1
             return None
         if result.returncode != 0:
             err = (result.stderr or result.stdout or "non-zero exit").strip()
@@ -317,6 +281,8 @@ class SLOStepRampShape(LoadTestShape):
                 self._cpu_skip_logged = True
             self._last_cpu_cores = None
             self._last_hot_cores = None
+            self._last_cpu_over = 0
+            self._last_cpu_need = 1
             return None
         pods: list[dict] = []
         needle = self.pod_grep
@@ -356,27 +322,49 @@ class SLOStepRampShape(LoadTestShape):
                 self._cpu_skip_logged = True
             self._last_cpu_cores = None
             self._last_hot_cores = None
+            self._last_cpu_over = 0
+            self._last_cpu_need = 1
             return None
         pods.sort(key=lambda pod: pod["name"])
         total = sum(float(pod["cores"]) for pod in pods)
         hottest = max(float(pod["cores"]) for pod in pods)
+        over = sum(
+            1 for pod in pods if float(pod["cores"]) >= self.cpu_breach_cores
+        )
+        need = 2 if len(pods) >= 3 else 1
         self._last_cpu_cores = total
         self._last_hot_cores = hottest
-        self._publish_cpu(pods, total, hottest)
+        self._last_cpu_over = over
+        self._last_cpu_need = need
+        self._publish_cpu(pods, total, hottest, over, need)
         return hottest
 
-    def _publish_cpu(self, pods: list[dict], total: float, hottest: float) -> None:
+    def _cpu_quorum_hot(self, run_time: float) -> bool:
+        """True when enough replicas are at CPU_BREACH_CORES (2 of 3+, else 1)."""
+        if self.cpu_breach_cores <= 0:
+            return False
+        cpu = self._staff_api_cpu_cores(run_time)
+        if cpu is None:
+            return False
+        return self._last_cpu_over >= self._last_cpu_need
+
+    def _publish_cpu(
+        self, pods: list[dict], total: float, hottest: float, over: int, need: int
+    ) -> None:
         STAFF_API_CPU["pods"] = pods
         STAFF_API_CPU["hottest_cores"] = hottest
         STAFF_API_CPU["total_cores"] = total
         STAFF_API_CPU["limit_cores"] = self.cpu_breach_cores
+        STAFF_API_CPU["over_limit"] = over
+        STAFF_API_CPU["need_over_limit"] = need
         STAFF_API_CPU["error"] = None
         STAFF_API_CPU["polls"] = int(STAFF_API_CPU.get("polls") or 0) + 1
         per_pod = " ".join(
             f"{pod['short_name']}={pod['cores']:.2f}c" for pod in pods
         )
         print(
-            f"[shape] farmer staff-api cpu pods={len(pods)} total={total:.2f}c | {per_pod}"
+            f"[shape] farmer staff-api cpu pods={len(pods)} total={total:.2f}c "
+            f"over={over}/{need} | {per_pod}"
         )
 
     def _cpu_log_bit(self, hottest: float | None) -> str:
@@ -388,12 +376,14 @@ class SLOStepRampShape(LoadTestShape):
         per_pod = " ".join(f"{pod['short_name']}={pod['cores']:.2f}c" for pod in pods)
         total = STAFF_API_CPU.get("total_cores")
         total_bit = f" total={total:.2f}c" if total is not None else ""
-        return f" hottest={hottest:.2f}c{total_bit} | {per_pod}"
+        over = STAFF_API_CPU.get("over_limit", 0)
+        need = STAFF_API_CPU.get("need_over_limit", 1)
+        return f" hottest={hottest:.2f}c{total_bit} over={over}/{need} | {per_pod}"
 
-    def _print_latency_snapshot(self, label: str) -> bool:
+    def _print_latency_snapshot(self, label: str) -> tuple[bool, bool]:
         """Print p95/p99 vs SLO for every tracked endpoint with enough samples.
 
-        Returns True if any endpoint with enough samples is over SLO.
+        Returns (had_enough_samples, any_endpoint_over_slo).
         """
         breached = False
         printed = False
@@ -422,7 +412,7 @@ class SLOStepRampShape(LoadTestShape):
                 f"[shape] {label}: not enough successes yet "
                 f"(need ≥{self.min_requests_for_check}/endpoint)"
             )
-        return breached
+        return printed, breached
 
     def _slo_breached_this_window(self, user_count: int, entries) -> bool:
         for (name, method), entry in entries.items():
@@ -460,17 +450,56 @@ class SLOStepRampShape(LoadTestShape):
                     return True
         return False
 
-    def _begin_soak(self, user_count: int, run_time: float, reason: str):
-        self._breach_user_count = user_count
-        self._breach_run_time = run_time
-        self._breach_reason = reason
+    def _freeze_users(self, user_count: int, run_time: float, reason: str) -> None:
+        if self._hold_users is not None:
+            return
+        self._hold_users = user_count
+        self._hold_run_time = run_time
+        self._hold_reason = reason
         self._soak_started = False
         self._soak_last_report_at = None
         self._soak_slo_failed = False
         print(
-            f"[shape] freezing ramp at {user_count} users ({reason}), "
-            f"soaking {self.sustain_seconds}s and checking p95/p99"
+            f"[shape] freeze at {user_count} users ({reason}); "
+            f"soaking {self.sustain_seconds}s — same users, no RPS cap"
         )
+
+    def _tick_soak(self, run_time: float, entries):
+        self._staff_api_cpu_cores(run_time)
+        if not self._soak_started:
+            self._soak_started = True
+            self._step_success_times = {}
+            self._step_start = {
+                key: (e.num_requests, e.num_failures) for key, e in entries.items()
+            }
+            self._soak_last_report_at = run_time
+        soak_elapsed = run_time - (self._hold_run_time or run_time)
+        if (
+            self._soak_last_report_at is not None
+            and run_time - self._soak_last_report_at >= self.step_seconds
+        ):
+            cpu = self._staff_api_cpu_cores(run_time)
+            cpu_bit = self._cpu_log_bit(cpu)
+            label = (
+                f"soak {int(soak_elapsed)}s/{self.sustain_seconds}s "
+                f"@ {self._hold_users} users{cpu_bit}"
+            )
+            _, slo_hot = self._print_latency_snapshot(label)
+            if slo_hot:
+                self._soak_slo_failed = True
+                print("[shape] soak window is above SLO (continuing until sustain ends)")
+            self._soak_last_report_at = run_time
+        if soak_elapsed >= self.sustain_seconds:
+            cpu = self._staff_api_cpu_cores(run_time)
+            cpu_bit = self._cpu_log_bit(cpu)
+            verdict = "FAIL" if self._soak_slo_failed else "PASS"
+            print(
+                f"[shape] soak complete: {verdict} {self.sustain_seconds}s at "
+                f"{self._hold_users} users ({self._hold_reason}){cpu_bit}"
+            )
+            self._print_latency_snapshot("soak final")
+            return None
+        return (self._hold_users, self.step_users)
 
     def tick(self):
         if not self._listener_registered:
@@ -482,41 +511,6 @@ class SLOStepRampShape(LoadTestShape):
 
         run_time = self.get_run_time()
         entries = self.runner.stats.entries
-
-        if self._breach_user_count is not None:
-            self._staff_api_cpu_cores(run_time)
-            if not self._soak_started:
-                # Soak window is independent of the breaching step's samples.
-                self._soak_started = True
-                self._step_success_times = {}
-                self._step_start = {key: (e.num_requests, e.num_failures) for key, e in entries.items()}
-                self._soak_last_report_at = run_time
-            soak_elapsed = run_time - self._breach_run_time
-            if (
-                self._soak_last_report_at is not None
-                and run_time - self._soak_last_report_at >= self.step_seconds
-            ):
-                cpu = self._staff_api_cpu_cores(run_time)
-                cpu_bit = self._cpu_log_bit(cpu)
-                label = (
-                    f"soak {int(soak_elapsed)}s/{self.sustain_seconds}s "
-                    f"@ {self._breach_user_count} users{cpu_bit}"
-                )
-                if self._print_latency_snapshot(label):
-                    self._soak_slo_failed = True
-                    print("[shape] soak window is above SLO (continuing until 2min ends)")
-                self._soak_last_report_at = run_time
-            if soak_elapsed >= self.sustain_seconds:
-                cpu = self._staff_api_cpu_cores(run_time)
-                cpu_bit = self._cpu_log_bit(cpu)
-                verdict = "FAIL" if self._soak_slo_failed else "PASS"
-                print(
-                    f"[shape] soak complete: {verdict} {self.sustain_seconds}s at "
-                    f"{self._breach_user_count} users ({self._breach_reason}){cpu_bit}"
-                )
-                self._print_latency_snapshot("soak final")
-                return None
-            return (self._breach_user_count, self.step_users)
 
         # Warmup: fixed low concurrency, no SLO checks, samples discarded
         # (see _on_request). Matches documentation/staff-api/test-scenarios.md
@@ -535,24 +529,26 @@ class SLOStepRampShape(LoadTestShape):
                 f"[shape] warmup complete ({self.warmup_seconds}s at "
                 f"{self.warmup_users} users); starting ramp "
                 f"(SLO check needs ≥{self.min_requests_for_check} successes/endpoint/step; "
-                f"CPU freeze at {self.cpu_breach_cores} cores)"
+                f"no RPS cap; freeze users then soak; "
+                f"CPU 2-of-3 or 1-of-1/2 at {self.cpu_breach_cores} cores)"
             )
+
+        if self._hold_users is not None:
+            return self._tick_soak(run_time, entries)
 
         # Ramp clock starts after warmup so step 0 is not mixed with cold traffic.
         ramp_time = run_time - self.warmup_seconds
         step = int(ramp_time // self.step_seconds)
-        user_count = self.step_users * (step + 1)
+        user_count = min(self.max_users, self.step_users * (step + 1))
 
-        cpu = self._staff_api_cpu_cores(run_time)
-        if cpu is not None and self.cpu_breach_cores > 0 and cpu >= self.cpu_breach_cores:
-            hold = max(self.warmup_users, min(user_count, self.max_users))
-            print(
-                f"[shape] CPU breach: farmer staff-api hottest={cpu:.2f}c >= "
-                f"{self.cpu_breach_cores}c at {user_count} users"
-                f"{self._cpu_log_bit(cpu)}"
+        if self._cpu_quorum_hot(run_time):
+            self._freeze_users(
+                user_count,
+                run_time,
+                f"CPU {self._last_cpu_over}/{self._last_cpu_need} pods "
+                f">={self.cpu_breach_cores}c hottest={self._last_hot_cores:.2f}c",
             )
-            self._begin_soak(hold, run_time, f"CPU {cpu:.2f}c")
-            return (hold, self.step_users)
+            return self._tick_soak(run_time, entries)
 
         if step != self._step:
             # New step: snapshot every endpoint's cumulative failure counter
@@ -563,12 +559,11 @@ class SLOStepRampShape(LoadTestShape):
             self._step_start = {key: (e.num_requests, e.num_failures) for key, e in entries.items()}
             self._step_success_times = {}
         elif self._slo_breached_this_window(user_count, entries):
-            last_good = max(self.warmup_users, user_count - self.step_users)
-            self._begin_soak(last_good, run_time, f"SLO at {user_count} users; holding last-good")
-            return (last_good, self.step_users)
+            self._freeze_users(user_count, run_time, f"SLO at {user_count} users")
+            return self._tick_soak(run_time, entries)
 
-        if user_count > self.max_users:
-            print(f"[shape] stop: reached max_users={self.max_users} without breaching any SLO")
-            return None
+        if user_count >= self.max_users:
+            self._freeze_users(user_count, run_time, f"max_users={self.max_users}")
+            return self._tick_soak(run_time, entries)
 
         return (user_count, self.step_users)

@@ -100,6 +100,14 @@ GIN_LIVE_ORDER = (
 )
 
 
+def fts_gin(name: str, table: str) -> tuple[str, str]:
+    sql = (
+        f"CREATE INDEX IF NOT EXISTS {name} ON {table} "
+        f"USING gin (to_tsvector('simple', coalesce(search_text, '')))"
+    )
+    return (f"{table}.{name}", sql)
+
+
 def plan() -> list[tuple[str, str]]:
     steps: list[tuple[str, str]] = []
     steps.append(idx(
@@ -114,6 +122,7 @@ def plan() -> list[tuple[str, str]]:
             "search_text gin_trgm_ops",
             using="gin",
         ))
+        steps.append(fts_gin(f"idx_{table}_search_text_fts", table))
         steps.append(idx(f"{table}_application_reference_key", table, "application_reference", unique=True))
         steps.append(idx(f"{table}_submission_id_key", table, "submission_id", unique=True))
     for table, extra in LIVE_TABLES:
@@ -129,11 +138,25 @@ def plan() -> list[tuple[str, str]]:
             "search_text gin_trgm_ops",
             using="gin",
         ))
+        steps.append(fts_gin(f"idx_{table}_search_text_fts", table))
+    steps.append(idx(
+        "ix_g2p_register_change_request_payloads_search_text_gin",
+        "g2p_register_change_request_payloads",
+        "search_text gin_trgm_ops",
+        using="gin",
+    ))
+    steps.append(fts_gin(
+        "ix_g2p_register_change_request_payloads_search_text_fts",
+        "g2p_register_change_request_payloads",
+    ))
     return steps
 
 
 def analyze_tables() -> list[str]:
-    return [t for t, _ in LIVE_TABLES] + list(INTAKE_TABLES) + ["awe_req_events"]
+    return [t for t, _ in LIVE_TABLES] + list(INTAKE_TABLES) + [
+        "awe_req_events",
+        "g2p_register_change_request_payloads",
+    ]
 
 
 def run_sql(cur, label: str, sql: str, allow_unique_fallback: bool = True) -> str:

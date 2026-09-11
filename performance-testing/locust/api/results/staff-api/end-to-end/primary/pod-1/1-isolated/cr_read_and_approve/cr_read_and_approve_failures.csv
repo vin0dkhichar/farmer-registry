@@ -1,1 +1,6 @@
 Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,get_deduplication_change_request_results,CatchResponseError('503'),1,2026-09-11T06:11:58Z,2026-09-11T06:11:58Z
+POST,get_change_request_documents,CatchResponseError('SYS-ERR-001: UNEXPECTED_ERROR'),1,2026-09-11T06:07:08Z,2026-09-11T06:07:08Z
+POST,get_deduplication_change_request_results,CatchResponseError('SYS-ERR-001: UNEXPECTED_ERROR'),1,2026-09-11T06:07:08Z,2026-09-11T06:07:08Z
+POST,get_deduplication_register_results,CatchResponseError('SYS-ERR-001: UNEXPECTED_ERROR'),2,2026-09-11T06:07:08Z,2026-09-11T06:07:08Z
+POST,get_change_request,CatchResponseError('SYS-ERR-001: UNEXPECTED_ERROR'),2,2026-09-11T06:07:08Z,2026-09-11T06:07:08Z
