@@ -28,8 +28,8 @@ export VOLUME_TIER=primary
 
 # Pod-Scale -- app replica count under test. Uncomment exactly one.
 # export POD_SCALE=1
-export POD_SCALE=2
-# export POD_SCALE=3
+# export POD_SCALE=2
+export POD_SCALE=3
 
 # Step -- see documentation/staff-api/test-scenarios.md §3/§7. Uncomment exactly one.
 export STEP=1-isolated

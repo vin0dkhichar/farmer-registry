@@ -1,10 +1,6 @@
 Method,Name,Error,Occurrences,First Seen,Last Seen
-POST,get_version_dates,CatchResponseError('503'),1,2026-09-10T17:57:26Z,2026-09-10T17:57:26Z
-POST,search_in_a_register,CatchResponseError('503'),1,2026-09-10T17:50:31Z,2026-09-10T17:50:31Z
-POST,get_versions_for_a_date,CatchResponseError('503'),2,2026-09-10T17:57:36Z,2026-09-10T18:02:13Z
-POST,get_tab_sections,CatchResponseError('503'),3,2026-09-10T17:56:10Z,2026-09-10T17:57:59Z
-POST,get_number_of_versions,CatchResponseError('503'),3,2026-09-10T17:52:40Z,2026-09-10T18:02:45Z
-POST,get_tab_records,CatchResponseError('503'),1,2026-09-10T17:49:01Z,2026-09-10T17:49:01Z
-POST,get_number_of_pending_change_requests,CatchResponseError('503'),3,2026-09-10T17:54:54Z,2026-09-10T18:00:43Z
-POST,get_subject_record,CatchResponseError('503'),1,2026-09-10T17:52:59Z,2026-09-10T17:52:59Z
-POST,get_change_requests,CatchResponseError('503'),4,2026-09-10T17:52:40Z,2026-09-10T18:01:22Z
+POST,get_tab_sections,CatchResponseError('503'),2,2026-09-11T09:01:30Z,2026-09-11T09:08:30Z
+POST,get_number_of_versions,CatchResponseError('503'),1,2026-09-11T09:05:35Z,2026-09-11T09:05:35Z
+POST,get_tab_records,CatchResponseError('503'),1,2026-09-11T09:07:27Z,2026-09-11T09:07:27Z
+POST,get_number_of_pending_change_requests,CatchResponseError('503'),1,2026-09-11T09:04:53Z,2026-09-11T09:04:53Z
+POST,get_change_requests,CatchResponseError('503'),1,2026-09-11T09:05:47Z,2026-09-11T09:05:47Z
