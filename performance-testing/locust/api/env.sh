@@ -27,8 +27,8 @@ export VOLUME_TIER=primary
 # export VOLUME_TIER=stress
 
 # Pod-Scale -- app replica count under test. Uncomment exactly one.
-export POD_SCALE=1
-# export POD_SCALE=2
+# export POD_SCALE=1
+export POD_SCALE=2
 # export POD_SCALE=3
 
 # Step -- see documentation/staff-api/test-scenarios.md §3/§7. Uncomment exactly one.
@@ -96,8 +96,11 @@ submit_task_decision 1200 1400
 
 # No per-user RPS cap — each user fires sequential HTTP as fast as the API
 # answers. Ramp users until CPU/SLO, freeze that count, soak, then stop.
+# Ignore one-off spikes: SLO needs 2 consecutive 30s windows, CPU 2 polls.
 export MAX_USERS=100
 export SUSTAIN_MINUTES=5
+export SLO_BREACH_STEPS=2
+export CPU_BREACH_POLLS=2
 
 # Freeze user count when enough replicas hit this many cores:
 # 3+ pods → 2 over limit; 1 or 2 pods → 1 over limit.
@@ -131,6 +134,8 @@ echo "$STEP"
 echo "$ISOLATED_SCENARIO"
 echo "$MAX_USERS"
 echo "$SUSTAIN_MINUTES"
+echo "$SLO_BREACH_STEPS"
+echo "$CPU_BREACH_POLLS"
 echo "$CPU_BREACH_CORES"
 echo "$STAFF_API_KUBE_NAMESPACE"
 echo "$STAFF_API_POD_GREP"

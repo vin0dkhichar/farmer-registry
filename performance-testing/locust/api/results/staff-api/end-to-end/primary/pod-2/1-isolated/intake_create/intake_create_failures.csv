@@ -1,0 +1,3 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,save_intake_form_submission,CatchResponseError('503'),2,2026-09-11T08:31:36Z,2026-09-11T08:32:36Z
+POST,save_intake_form_submission,"CatchResponseError(""REQ-VAL-000: link_internal_record_id '63c29fad-ac5a-4fe3-97fa-946891ce11d0' is not an allowed parent for this submission"")",1,2026-09-11T08:31:37Z,2026-09-11T08:31:37Z

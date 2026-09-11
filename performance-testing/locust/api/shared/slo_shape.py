@@ -163,9 +163,11 @@ class SLOStepRampShape(LoadTestShape):
     +step_users every step_seconds up to max_users. There is no per-user RPS
     cap; each user fires sequential HTTP as fast as the API answers. CPU
     freeze: if 3+ replicas, 2 pods must be at CPU_BREACH_CORES; if 1 or 2
-    replicas, 1 pod is enough. On CPU or SLO, freeze that user count (no
-    step-down) and soak sustain_seconds. Reaching max_users also soaks then
-    stops.
+    replicas, 1 pod is enough. A single SLO or CPU spike does not freeze:
+    SLO needs SLO_BREACH_STEPS consecutive step windows, CPU needs
+    CPU_BREACH_POLLS consecutive polls. On confirmed CPU or SLO, freeze
+    that user count (no step-down) and soak sustain_seconds. Reaching
+    max_users also soaks then stops.
 
     503s/other failures are logged but do not freeze the ramp and do not
     feed p95/p99. Only successful request times count.
@@ -201,6 +203,8 @@ class SLOStepRampShape(LoadTestShape):
     min_requests_for_check = 100
     sustain_seconds = int(float(os.environ.get("SUSTAIN_MINUTES", "10")) * 60)
     cpu_breach_cores = float(os.environ.get("CPU_BREACH_CORES", "1.8"))
+    cpu_breach_polls = int(os.environ.get("CPU_BREACH_POLLS", "2"))
+    slo_breach_steps = int(os.environ.get("SLO_BREACH_STEPS", "2"))
     kube_namespace = os.environ.get("STAFF_API_KUBE_NAMESPACE", "perftest")
     pod_grep = os.environ.get("STAFF_API_POD_GREP", "farmer-registry-staff-portal-api")
     cpu_poll_seconds = 10
@@ -218,6 +222,10 @@ class SLOStepRampShape(LoadTestShape):
         self._last_hot_cores: float | None = None
         self._last_cpu_over: int = 0
         self._last_cpu_need: int = 1
+        self._cpu_hot_polls = 0
+        self._cpu_streak_poll_at = 0.0
+        self._slo_hot_steps = 0
+        self._slo_counted_this_step = False
         self._hold_users: int | None = None
         self._hold_run_time: float | None = None
         self._hold_reason: str | None = None
@@ -450,6 +458,56 @@ class SLOStepRampShape(LoadTestShape):
                     return True
         return False
 
+    def _slo_window_status(self, user_count: int, entries) -> str:
+        """Return 'hot', 'ok', or 'wait' (not enough samples yet)."""
+        if self._slo_breached_this_window(user_count, entries):
+            return "hot"
+        for (name, method), times in self._step_success_times.items():
+            if name in self._tracked_names and len(times) >= self.min_requests_for_check:
+                return "ok"
+        return "wait"
+
+    def _cpu_confirmed_hot(self, run_time: float) -> bool:
+        """True only after CPU_BREACH_POLLS consecutive hot kubectl polls."""
+        hot = self._cpu_quorum_hot(run_time)
+        if self._last_cpu_poll_at != self._cpu_streak_poll_at:
+            self._cpu_streak_poll_at = self._last_cpu_poll_at
+            if hot:
+                self._cpu_hot_polls += 1
+                print(
+                    f"[shape] CPU quorum {self._cpu_hot_polls}/{self.cpu_breach_polls} "
+                    f"over={self._last_cpu_over}/{self._last_cpu_need} "
+                    f"hottest={self._last_hot_cores}"
+                )
+            elif self._cpu_hot_polls:
+                print("[shape] CPU spike ignored; poll recovered")
+                self._cpu_hot_polls = 0
+        return hot and self._cpu_hot_polls >= self.cpu_breach_polls
+
+    def _note_slo_window(self, user_count: int, entries, run_time: float) -> bool:
+        """Count at most one SLO verdict per step. Freeze after consecutive hots."""
+        if self._slo_counted_this_step:
+            return False
+        status = self._slo_window_status(user_count, entries)
+        if status == "wait":
+            return False
+        self._slo_counted_this_step = True
+        if status == "hot":
+            self._slo_hot_steps += 1
+            print(
+                f"[shape] SLO window {self._slo_hot_steps}/{self.slo_breach_steps} "
+                f"at {user_count} users"
+            )
+            if self._slo_hot_steps >= self.slo_breach_steps:
+                self._freeze_users(user_count, run_time, f"SLO at {user_count} users")
+                return True
+            print("[shape] SLO spike ignored; need another consecutive window")
+            return False
+        if self._slo_hot_steps:
+            print("[shape] SLO spike ignored; window recovered")
+        self._slo_hot_steps = 0
+        return False
+
     def _freeze_users(self, user_count: int, run_time: float, reason: str) -> None:
         if self._hold_users is not None:
             return
@@ -530,7 +588,8 @@ class SLOStepRampShape(LoadTestShape):
                 f"{self.warmup_users} users); starting ramp "
                 f"(SLO check needs ≥{self.min_requests_for_check} successes/endpoint/step; "
                 f"no RPS cap; freeze users then soak; "
-                f"CPU 2-of-3 or 1-of-1/2 at {self.cpu_breach_cores} cores)"
+                f"CPU 2-of-3 or 1-of-1/2 at {self.cpu_breach_cores} cores "
+                f"({self.cpu_breach_polls} polls); SLO {self.slo_breach_steps} windows)"
             )
 
         if self._hold_users is not None:
@@ -541,25 +600,23 @@ class SLOStepRampShape(LoadTestShape):
         step = int(ramp_time // self.step_seconds)
         user_count = min(self.max_users, self.step_users * (step + 1))
 
-        if self._cpu_quorum_hot(run_time):
+        if self._cpu_confirmed_hot(run_time):
+            hottest = self._last_hot_cores
+            hottest_bit = f"{hottest:.2f}c" if hottest is not None else "?"
             self._freeze_users(
                 user_count,
                 run_time,
                 f"CPU {self._last_cpu_over}/{self._last_cpu_need} pods "
-                f">={self.cpu_breach_cores}c hottest={self._last_hot_cores:.2f}c",
+                f">={self.cpu_breach_cores}c hottest={hottest_bit}",
             )
             return self._tick_soak(run_time, entries)
 
         if step != self._step:
-            # New step: snapshot every endpoint's cumulative failure counter
-            # (for logging only) and clear the success-only response-time
-            # samples so the SLO check below is scoped to this step's
-            # traffic only.
             self._step = step
+            self._slo_counted_this_step = False
             self._step_start = {key: (e.num_requests, e.num_failures) for key, e in entries.items()}
             self._step_success_times = {}
-        elif self._slo_breached_this_window(user_count, entries):
-            self._freeze_users(user_count, run_time, f"SLO at {user_count} users")
+        elif self._note_slo_window(user_count, entries, run_time):
             return self._tick_soak(run_time, entries)
 
         if user_count >= self.max_users:
